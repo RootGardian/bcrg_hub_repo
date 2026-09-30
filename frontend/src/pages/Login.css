@@ -1,0 +1,229 @@
+/* Reset de base pour la page */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body, html {
+  height: 100%;
+  width: 100%;
+}
+
+.login-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  background-color: #ffffff;
+  overflow: hidden;
+}
+
+/* --- PARTIE GAUCHE --- */
+.login-left {
+  flex: 1;
+  background-color: #1a3c2c;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.branding-content {
+  text-align: center;
+  z-index: 2;
+}
+
+.logo-icon {
+  width: 120px;
+  height: 120px;
+  background-color: #143224;
+  border-radius: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.medical-cross {
+  width: 80px;
+  height: 80px;
+}
+
+.login-left h1 {
+  color: #ffffff;
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+/* Motif de points (Dots) */
+.dot-pattern {
+  position: absolute;
+  bottom: 40px;
+  left: 40px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  opacity: 0.2;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  background-color: #ffffff;
+  border-radius: 50%;
+}
+
+/* --- PARTIE DROITE --- */
+.login-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff;
+  padding: 40px;
+}
+
+.form-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 450px;
+  width: 100%;
+}
+
+.form-header {
+  margin-bottom: 40px;
+}
+
+.form-header h2 {
+  color: #1c2b36;
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.form-header p {
+  color: #6c8093;
+  font-size: 0.95rem;
+}
+
+/* Formulaire */
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #556b82;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 15px;
+  color: #a0b2c1;
+}
+
+.input-container input {
+  width: 100%;
+  padding: 14px 45px;
+  border: 1px solid #e1e7ec;
+  border-radius: 6px;
+  font-size: 1rem;
+  color: #333;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.input-container input:focus {
+  border-color: #1a3c2c;
+  box-shadow: 0 0 0 3px rgba(26, 60, 44, 0.1);
+}
+
+.input-container input::placeholder {
+  color: #a0b2c1;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 15px;
+  background: none;
+  border: none;
+  color: #a0b2c1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-password:hover {
+  color: #1a3c2c;
+}
+
+/* Bouton Soumettre */
+.btn-submit {
+  width: 100%;
+  padding: 14px;
+  background-color: #1a3c2c;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  transition: background-color 0.3s ease;
+  margin-top: 10px;
+}
+
+.btn-submit:hover {
+  background-color: #142e22;
+}
+
+/* Footer */
+.login-footer {
+  text-align: center;
+  color: #a0b2c1;
+  font-size: 0.8rem;
+  padding-top: 20px;
+}
+
+/* Responsivité */
+@media (max-width: 900px) {
+  .login-container {
+    flex-direction: column;
+  }
+  
+  .login-left {
+    flex: 0.4;
+    padding: 30px;
+  }
+  
+  .login-right {
+    flex: 0.6;
+    padding: 20px;
+  }
+  
+  .dot-pattern {
+    display: none;
+  }
+}
