@@ -97,6 +97,9 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState(null);
   const [newRole, setNewRole] = useState({ name: '', description: '' });
+  
+  const [showRoleMembersModal, setShowRoleMembersModal] = useState(false);
+  const [selectedRoleForMembers, setSelectedRoleForMembers] = useState(null);
 
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
@@ -114,7 +117,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const [assignRoleForm, setAssignRoleForm] = useState({ ldap_type: 'USER', ldap_identifier: '', role_id: '', ldap_name: '' });
   const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [isLdapDropdownOpen, setIsLdapDropdownOpen] = useState(false);
-  
+
   const [ldapUsers, setLdapUsers] = useState([]);
   const [ldapGroups, setLdapGroups] = useState([]);
   const [loadingLdap, setLoadingLdap] = useState(false);
@@ -261,6 +264,20 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
         showToast("Application supprimée avec succès");
         fetchApps(); fetchStats();
       } catch (err) { showToast("Erreur lors de la suppression de l'application", "error"); }
+    });
+  };
+
+  const handleRevokeLdapMapping = async (mappingId) => {
+    requestConfirm('Êtes-vous sûr de vouloir révoquer cet accès AD ?', async () => {
+      try {
+        await axios.delete(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/roles/mapping/${mappingId}`, getConfig());
+        showToast("Accès révoqué avec succès");
+        fetchRoles(); // Refresh the roles data
+        // If modal is open, we need to update its content by finding the updated role
+        if (selectedRoleForMembers) {
+           setShowRoleMembersModal(false);
+        }
+      } catch (err) { showToast("Erreur lors de la révocation", "error"); }
     });
   };
 
@@ -489,12 +506,6 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
                       <button className="btn-primary-action" style={{ justifyContent: 'flex-start' }} onClick={() => { setNewApp({ name: '', url: '', description: '', status: 'Actif', icon_url: '' }); setEditingAppId(null); setShowAppModal(true); }}>
                         <Plus size={18} /> Ajouter une nouvelle application
-                      </button>
-                      <button className="btn-secondary-action" style={{ justifyContent: 'flex-start' }} onClick={() => { fetchRoles(); setShowUserModal(true); }}>
-                        <Users size={18} /> Créer un compte employé
-                      </button>
-                      <button className="btn-secondary-action" style={{ justifyContent: 'flex-start' }} onClick={() => setShowImportModal(true)}>
-                        <Upload size={18} /> Importation de masse (CSV)
                       </button>
                       <button className="btn-secondary-action" style={{ justifyContent: 'flex-start' }} onClick={() => { fetchApps(); fetchUsers(); fetchRoles(); setAssignResult(null); setShowAssignModal(true); }}>
                         <Key size={18} /> Assigner une application à un utilisateur / rôle
@@ -796,7 +807,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                     </div>
                   </div>
                   <div className="toolbar-right">
-                    <button className="btn-secondary-action" onClick={() => { fetchRoles(); fetchLdapEntities(); setAssignRoleResult(null); setAssignRoleForm({ldap_type: 'USER', ldap_identifier: '', role_id: '', ldap_name: ''}); setShowAssignRoleModal(true); }}>
+                    <button className="btn-secondary-action" onClick={() => { fetchRoles(); fetchLdapEntities(); setAssignRoleResult(null); setAssignRoleForm({ ldap_type: 'USER', ldap_identifier: '', role_id: '', ldap_name: '' }); setShowAssignRoleModal(true); }}>
                       <UserCheck size={16} /> Ajouter un utilisateur à un rôle
                     </button>
                     <button className="btn-primary-action" onClick={() => { setNewRole({ name: '', description: '' }); setEditingRoleId(null); setShowRoleModal(true); }}>
@@ -855,6 +866,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                                 </button>
                                 {activeActionMenu === `role-${r.id}` && (
                                   <div className="action-menu-dropdown">
+                                    <button className="action-menu-item" onClick={() => { setSelectedRoleForMembers(r); setShowRoleMembersModal(true); setActiveActionMenu(null); }}><Users size={16} className="action-menu-icon" /> Voir les membres AD</button>
                                     <button className="action-menu-item" onClick={() => { setAssignForm({ ...assignForm, targetType: 'role', role_id: r.id }); setShowAssignModal(true); setActiveActionMenu(null); }}><Key size={16} className="action-menu-icon" /> Assigner App</button>
                                     <button className="action-menu-item" onClick={() => { setNewRole({ name: r.name, description: r.description }); setEditingRoleId(r.id); setShowRoleModal(true); setActiveActionMenu(null); }}><Edit size={16} className="action-menu-icon" /> Modifier</button>
                                     <button className="action-menu-item delete" onClick={() => { handleDeleteRole(r.id); setActiveActionMenu(null); }}><Trash2 size={16} className="action-menu-icon" /> Supprimer</button>
@@ -994,7 +1006,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
           <div className="modal-content">
             <h3>Assigner un rôle à l'Active Directory</h3>
             <form onSubmit={handleAssignRole}>
-              
+
               <div className="form-group">
                 <label>Type d'entité</label>
                 <div style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
@@ -1013,8 +1025,8 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                   <div style={{ padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>Chargement depuis l'Active Directory...</div>
                 ) : (
                   <div style={{ position: 'relative' }}>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder={`Tapez un nom pour rechercher un ${assignRoleForm.ldap_type === 'USER' ? 'utilisateur' : 'groupe'}...`}
                       value={modalSearchTerm}
                       onChange={(e) => {
@@ -1026,22 +1038,22 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                       onBlur={() => setTimeout(() => setIsLdapDropdownOpen(false), 200)}
                       style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }}
                     />
-                    
+
                     {isLdapDropdownOpen && (
-                      <div style={{ 
-                        position: 'absolute', top: '100%', left: 0, right: 0, 
-                        maxHeight: '200px', overflowY: 'auto', backgroundColor: 'white', 
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0,
+                        maxHeight: '200px', overflowY: 'auto', backgroundColor: 'white',
                         border: '1px solid #ddd', borderRadius: '4px', zIndex: 1000,
                         boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
                       }}>
                         {assignRoleForm.ldap_type === 'USER' && ldapUsers
-                          .filter(u => 
-                            (u.identifier || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) || 
+                          .filter(u =>
+                            (u.identifier || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
                             (u.name || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
                             ((u.first_name || '') + ' ' + (u.last_name || '')).toLowerCase().includes(modalSearchTerm.toLowerCase())
                           )
                           .map(u => (
-                            <div 
+                            <div
                               key={u.identifier}
                               style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
                               onMouseDown={() => {
@@ -1052,16 +1064,16 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                               onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
                               onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                             >
-                              {u.name || u.first_name + ' ' + u.last_name} <span style={{color: '#666', fontSize: '0.9em'}}>({u.identifier})</span>
+                              {u.name || u.first_name + ' ' + u.last_name} <span style={{ color: '#666', fontSize: '0.9em' }}>({u.identifier})</span>
                             </div>
-                        ))}
+                          ))}
                         {assignRoleForm.ldap_type === 'GROUP' && ldapGroups
-                          .filter(g => 
-                            (g.identifier || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) || 
+                          .filter(g =>
+                            (g.identifier || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
                             (g.name || '').toLowerCase().includes(modalSearchTerm.toLowerCase())
                           )
                           .map(g => (
-                            <div 
+                            <div
                               key={g.identifier}
                               style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
                               onMouseDown={() => {
@@ -1072,9 +1084,9 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                               onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
                               onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                             >
-                              {g.name} {g.description ? <span style={{color: '#666', fontSize: '0.9em'}}>({g.description})</span> : ''}
+                              {g.name} {g.description ? <span style={{ color: '#666', fontSize: '0.9em' }}>({g.description})</span> : ''}
                             </div>
-                        ))}
+                          ))}
                       </div>
                     )}
                   </div>
@@ -1106,13 +1118,74 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
         </div>
       )}
 
+      {/* MODAL VOIR MEMBRES AD */}
+      {showRoleMembersModal && selectedRoleForMembers && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3>Membres AD assignés au rôle : {selectedRoleForMembers.name}</h3>
+              <button className="btn-close" onClick={() => setShowRoleMembersModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: '#64748b', marginBottom: '15px' }}>
+                Liste des utilisateurs et groupes Active Directory qui ont reçu cette habilitation.
+              </p>
+              
+              {(!selectedRoleForMembers.LdapRoleMappings || selectedRoleForMembers.LdapRoleMappings.length === 0) ? (
+                <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
+                  Aucun membre AD n'est directement assigné à ce rôle via le Hub.
+                </div>
+              ) : (
+                <table className="bcrg-table" style={{ marginTop: '0' }}>
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Identifiant AD</th>
+                      <th>Nom affiché</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedRoleForMembers.LdapRoleMappings.map(mapping => (
+                      <tr key={mapping.id}>
+                        <td>
+                          <span className={`badge-pill-type ${mapping.ldap_type === 'GROUP' ? 'badge-pill-purple' : 'badge-pill-blue'}`}>
+                            {mapping.ldap_type === 'GROUP' ? 'Groupe' : 'Utilisateur'}
+                          </span>
+                        </td>
+                        <td><code style={{ fontSize: '0.85rem' }}>{mapping.ldap_identifier}</code></td>
+                        <td>{mapping.ldap_name || 'N/A'}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button 
+                            className="btn-delete" 
+                            style={{ padding: '4px 8px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', border: 'none', background: 'none' }}
+                            onClick={() => handleRevokeLdapMapping(mapping.id)}
+                          >
+                            <Trash2 size={14} /> Révoquer
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="modal-footer" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => setShowRoleMembersModal(false)}>Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST SYSTEM */}
+
       <div className="admin-content">
         {/* L'accolade fermante pour 'roles' est déjà plus haut, je dois juste ajouter au niveau root du admin-content */}
-            {activeTab === 'ldap' && (
-              <div style={{ minHeight: 'calc(100vh - 200px)' }}>
-                <LdapConfigPanel />
-              </div>
-            )}
+        {activeTab === 'ldap' && (
+          <div style={{ minHeight: 'calc(100vh - 200px)' }}>
+            <LdapConfigPanel />
+          </div>
+        )}
       </div>
     </div>
   );

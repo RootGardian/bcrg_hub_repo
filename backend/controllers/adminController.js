@@ -53,7 +53,13 @@ const createApplication = async (req, res) => {
 
 const getRoles = async (req, res) => {
   try {
-    const roles = await Role.findAll({ order: [['id', 'ASC']] });
+    const roles = await Role.findAll({ 
+      include: [
+        { model: Application, through: { attributes: [] } },
+        { model: LdapRoleMapping }
+      ],
+      order: [['id', 'ASC']] 
+    });
     res.json(roles);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur lors de la récupération des rôles' });
@@ -247,6 +253,15 @@ const assignLdapRole = async (req, res) => {
   }
 };
 
+const removeLdapRoleMapping = async (req, res) => {
+  try {
+    const mapping = await LdapRoleMapping.findByPk(req.params.id);
+    if (!mapping) return res.status(404).json({ message: 'Mapping introuvable' });
+    await mapping.destroy();
+    res.json({ message: 'Assignation LDAP révoquée' });
+  } catch (error) { res.status(500).json({ message: 'Erreur revoke mapping', error: error.message }); }
+};
+
 // Export overrides will be replaced by multi_replace_file_content
 
 
@@ -268,5 +283,6 @@ module.exports = {
   deleteUser,
   updateRole,
   deleteRole,
-  assignLdapRole
+  assignLdapRole,
+  removeLdapRoleMapping
 };
