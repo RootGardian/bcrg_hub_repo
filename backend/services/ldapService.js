@@ -1,5 +1,6 @@
 const { authenticate } = require('ldap-authentication');
 const { LdapConfig } = require('../models');
+const ldap = require('ldapjs');
 
 const authenticateLdap = async (identifier, password) => {
   try {
@@ -37,36 +38,31 @@ const authenticateLdap = async (identifier, password) => {
 };
 
 const testLdapConnection = async (config) => {
-  try {
-    let options = {
-      ldapOpts: {
-        url: `ldap://${config.server}:${config.port}`,
-        connectTimeout: 15000,
-        timeout: 15000
-      }
-    };
-    if (config.use_bind && config.bind_dn && config.bind_password) {
-      options.adminDn = config.bind_dn;
-      options.adminPassword = config.bind_password;
-      options.userSearchBase = config.base_dn;
-      // Just authenticating the admin user to test bind
-      options.userDn = config.bind_dn;
-      options.userPassword = config.bind_password;
-      options.usernameAttribute = 'cn';
-      options.username = config.bind_dn.split(',')[0].split('=')[1] || config.bind_dn; // rough attempt
-    } else {
-       return { success: false, message: "Le test anonyme n'est pas supporté par cet outil de test." };
-    }
-    
-    // Test the bind
-    await authenticate(options);
-    return { success: true };
-  } catch (error) {
-    return { success: false, message: error.message || 'Erreur de connexion LDAP' };
-  }
-};
+  return new Promise((resolve) => {
+    const client = ldap.createClient({
+      url: `ldap://${config.server}:${config.port}`,
+      connectTimeout: 15000,
+      timeout: 15000
+    });
 
-const ldap = require('ldapjs');
+    client.on('error', (err) => {
+      resolve({ success: false, message: err.message || 'Erreur de connexion LDAP' });
+    });
+
+    if (config.use_bind && config.bind_dn && config.bind_password) {
+      client.bind(config.bind_dn, config.bind_password, (err) => {
+        if (err) {
+          resolve({ success: false, message: err.message || "Échec de l'authentification (Bind DN ou Mot de passe incorrect)" });
+        } else {
+          client.unbind();
+          resolve({ success: true, message: 'Connexion et authentification réussies' });
+        }
+      });
+    } else {
+      resolve({ success: false, message: "Le test anonyme n'est pas supporté par cet outil de test." });
+    }
+  });
+};
 
 const createLdapClient = async (config) => {
   return new Promise((resolve, reject) => {
