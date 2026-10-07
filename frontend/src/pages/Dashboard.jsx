@@ -128,9 +128,11 @@ const Dashboard = () => {
   const openApp = (app) => {
     if (app.status !== 'Actif') return;
     try {
-      const token = localStorage.getItem('token');
       const urlObj = new URL(app.url);
-      if (token) urlObj.searchParams.append('sso_token', token);
+      if (app.auth_type === 'SSO') {
+        const token = localStorage.getItem('token');
+        if (token) urlObj.searchParams.append('sso_token', token);
+      }
       window.open(urlObj.toString(), '_blank', 'noopener,noreferrer');
     } catch(e) {
       window.open(app.url, '_blank', 'noopener,noreferrer');

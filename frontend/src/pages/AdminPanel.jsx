@@ -912,6 +912,19 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
               </div>
 
               <div className="form-group">
+                <label>Mode de connexion</label>
+                <select value={newApp.auth_type} onChange={e => setNewApp({ ...newApp, auth_type: e.target.value })}>
+                  <option value="SSO">Vrai SSO (Jeton JWT sécurisé dans l'URL)</option>
+                  <option value="NONE">Redirection simple (Sans jeton)</option>
+                </select>
+                <small style={{ color: '#64748b', fontSize: '0.8rem', display: 'block', marginTop: '4px' }}>
+                  {newApp.auth_type === 'SSO' 
+                    ? "Le HUB redirigera vers l'application en ajoutant ?sso_token=... dans l'URL." 
+                    : "Le HUB ouvrira l'application telle quelle, l'utilisateur devra se connecter."}
+                </small>
+              </div>
+
+              <div className="form-group">
                 <label>Statut</label>
                 <select value={newApp.status} onChange={e => setNewApp({ ...newApp, status: e.target.value })}>
                   <option value="Actif">Actif</option>
