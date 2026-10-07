@@ -24,8 +24,14 @@ const getMyApps = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-    // Si l'utilisateur est un Administrateur, il a accès à toutes les applications actives
-    if (user.is_admin) {
+    // Vérifier si l'utilisateur a un rôle admin
+    let hasAdminRole = false;
+    if (user.Roles) {
+      hasAdminRole = user.Roles.some(r => r.name.toLowerCase().includes('admin'));
+    }
+
+    // Si l'utilisateur est un Administrateur (en DB ou via Rôle), il a accès à toutes les applications actives
+    if (user.is_admin || hasAdminRole) {
       const allActiveApps = await Application.findAll({ where: { status: 'Actif' } });
       return res.json(allActiveApps);
     }
