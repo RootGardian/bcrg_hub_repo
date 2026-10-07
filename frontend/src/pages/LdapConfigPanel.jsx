@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Save, Trash2, Activity, Users, Settings, Database, Server, Info, Search, List, ChevronRight } from 'lucide-react';
+import { Save, Trash2, Activity, Users, Settings, Database, Server, Info, Search, List, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import './LdapConfigPanel.css';
 
 const LdapConfigPanel = () => {
@@ -24,6 +24,7 @@ const LdapConfigPanel = () => {
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('config');
   const [testResult, setTestResult] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   
   const [ldapUsersList, setLdapUsersList] = useState([]);
   const [ldapGroupsList, setLdapGroupsList] = useState([]);
@@ -201,7 +202,27 @@ const LdapConfigPanel = () => {
 
               <div className="form-row">
                 <label>Mot de passe du compte (pour les connexions non anonymes)</label>
-                <input type="password" name="bind_password" value={config.bind_password} onChange={handleChange} className="input-medium" placeholder="Effacer" />
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    name="bind_password" 
+                    value={config.bind_password} 
+                    onChange={handleChange} 
+                    className="input-medium" 
+                    placeholder="Saisir le mot de passe" 
+                    style={{ paddingRight: '35px' }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ 
+                      position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', 
+                      background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 0
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
                 
                 <label className="right-label">Champ de synchronisation</label>
                 <input type="text" name="sync_field" value={config.sync_field} onChange={handleChange} className="input-medium" />
