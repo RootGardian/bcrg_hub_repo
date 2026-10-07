@@ -141,7 +141,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/stats`, getConfig());
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/stats`, getConfig());
       setStats(data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
@@ -149,7 +149,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users`, getConfig());
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/users`, getConfig());
       setUsersList(data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
@@ -157,7 +157,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const fetchApps = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/applications`, getConfig());
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/applications`, getConfig());
       setApps(data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
@@ -165,7 +165,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles`, getConfig());
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/roles`, getConfig());
       setRoles(data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
@@ -184,9 +184,9 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
     e.preventDefault();
     try {
       if (editingAppId) {
-        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/applications/${editingAppId}`, newApp, getConfig());
+        await axios.put(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/applications/${editingAppId}`, newApp, getConfig());
       } else {
-        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/applications`, newApp, getConfig());
+        await axios.post(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/applications`, newApp, getConfig());
       }
       setShowAppModal(false); setEditingAppId(null); showToast("Application sauvegardée avec succès");
       setNewApp({ name: '', url: '', description: '', auth_type: 'SSO', status: 'Actif', icon_url: '' });
@@ -199,7 +199,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
     e.preventDefault();
     try {
       if (assignForm.targetType === 'user') {
-        const { data } = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users/assign-app`, {
+        const { data } = await axios.post(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/users/assign-app`, {
           user_id: assignForm.user_id,
           app_id: assignForm.app_id
         }, getConfig());
@@ -210,7 +210,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
           setAssignForm({ targetType: 'user', user_id: '', role_id: '', app_id: '' });
         }, 1200);
       } else {
-        const { data } = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles/assign-app`, {
+        const { data } = await axios.post(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/roles/assign-app`, {
           role_id: assignForm.role_id,
           app_id: assignForm.app_id
         }, getConfig());
@@ -227,9 +227,9 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const fetchLdapEntities = async () => {
     setLoadingLdap(true);
     try {
-      const resUsers = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ldap-config/users`);
+      const resUsers = await axios.get(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/ldap-config/users`);
       setLdapUsers(resUsers.data || []);
-      const resGroups = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ldap-config/groups`);
+      const resGroups = await axios.get(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/ldap-config/groups`);
       setLdapGroups(resGroups.data || []);
     } catch (err) {
       console.error("Erreur lors de la récupération de l'AD", err);
@@ -246,7 +246,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
     }
     try {
       const configWithAuth = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
-      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles/assign-ldap`, assignRoleForm, configWithAuth);
+      await axios.post(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/roles/assign-ldap`, assignRoleForm, configWithAuth);
       setAssignRoleResult({ success: true, message: 'Rôle assigné avec succès !' });
       setTimeout(() => { setShowAssignRoleModal(false); setAssignRoleResult(null); }, 2000);
     } catch (err) {
@@ -257,7 +257,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const handleDeleteApp = async (id) => {
     requestConfirm('Êtes-vous sûr de vouloir supprimer cette application ?', async () => {
       try {
-        await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/applications/${id}`, getConfig());
+        await axios.delete(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/applications/${id}`, getConfig());
         showToast("Application supprimée avec succès");
         fetchApps(); fetchStats();
       } catch (err) { showToast("Erreur lors de la suppression de l'application", "error"); }
@@ -267,7 +267,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const handleDeleteUser = async (id) => {
     requestConfirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?', async () => {
       try {
-        await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users/${id}`, getConfig());
+        await axios.delete(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/users/${id}`, getConfig());
         showToast("Utilisateur supprimé avec succès");
         fetchUsers(); fetchStats();
       } catch (err) { showToast("Erreur lors de la suppression de l'utilisateur", "error"); }
@@ -277,7 +277,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const handleDeleteRole = async (id) => {
     requestConfirm('Êtes-vous sûr de vouloir supprimer ce rôle ?', async () => {
       try {
-        await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles/${id}`, getConfig());
+        await axios.delete(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/roles/${id}`, getConfig());
         showToast("Rôle supprimé avec succès");
         fetchRoles(); fetchStats();
       } catch (err) { showToast("Erreur lors de la suppression du rôle", "error"); }
@@ -288,9 +288,9 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
     e.preventDefault();
     try {
       if (editingRoleId) {
-        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles/${editingRoleId}`, newRole, getConfig());
+        await axios.put(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/roles/${editingRoleId}`, newRole, getConfig());
       } else {
-        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles`, newRole, getConfig());
+        await axios.post(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/roles`, newRole, getConfig());
       }
       setShowRoleModal(false); setEditingRoleId(null); showToast("Rôle sauvegardé avec succès");
       setNewRole({ name: '', description: '' });
@@ -302,9 +302,9 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
     e.preventDefault();
     try {
       if (editingUserId) {
-        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users/${editingUserId}`, newUser, getConfig());
+        await axios.put(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/users/${editingUserId}`, newUser, getConfig());
       } else {
-        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users`, newUser, getConfig());
+        await axios.post(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/users`, newUser, getConfig());
       }
       setShowUserModal(false); setEditingUserId(null); showToast('Utilisateur sauvegardé avec succès');
       setNewUser({ first_name: '', last_name: '', email: '', matricule: '', department: '', role_id: '', password: '' });
@@ -342,7 +342,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
       }
 
       try {
-        const { data } = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users/import`, { users: usersToImport }, getConfig());
+        const { data } = await axios.post(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/admin/users/import`, { users: usersToImport }, getConfig());
         setImportResult(data);
         fetchUsers(); fetchStats();
       } catch (err) {

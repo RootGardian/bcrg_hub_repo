@@ -37,7 +37,7 @@ const LdapConfigPanel = () => {
       if (activeTab === 'users' && ldapUsersList.length === 0) {
         setLoadingLdapData(true);
         try {
-          const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ldap-config/users`);
+          const res = await axios.get(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/ldap-config/users`);
           setLdapUsersList(res.data || []);
         } catch(e) { console.error(e); }
         finally { setLoadingLdapData(false); }
@@ -45,7 +45,7 @@ const LdapConfigPanel = () => {
       if (activeTab === 'groups' && ldapGroupsList.length === 0) {
         setLoadingLdapData(true);
         try {
-          const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ldap-config/groups`);
+          const res = await axios.get(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/ldap-config/groups`);
           setLdapGroupsList(res.data || []);
         } catch(e) { console.error(e); }
         finally { setLoadingLdapData(false); }
@@ -59,7 +59,7 @@ const LdapConfigPanel = () => {
     // Charger la configuration au démarrage
     const fetchConfig = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ldap-config`);
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/ldap-config`);
         if (response.data && response.data.length > 0) {
           const loadedConfig = response.data[0]; // On prend la première config
           setConfigId(loadedConfig.id);
@@ -85,10 +85,10 @@ const LdapConfigPanel = () => {
     try {
       if (configId) {
         // Mise à jour
-        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ldap-config/${configId}`, config);
+        await axios.put(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/ldap-config/${configId}`, config);
       } else {
         // Création
-        const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ldap-config`, config);
+        const res = await axios.post(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/ldap-config`, config);
         setConfigId(res.data.id);
       }
       setMessage('Configuration sauvegardée avec succès.');
@@ -104,7 +104,7 @@ const LdapConfigPanel = () => {
     if (!configId) return;
     if (window.confirm("Êtes-vous sûr de vouloir supprimer définitivement cette configuration LDAP ?")) {
       try {
-        await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ldap-config/${configId}`);
+        await axios.delete(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/ldap-config/${configId}`);
         setConfigId(null);
         setConfig({
           name: '', server_url: '', port: 389, base_dn: '', is_active: false,
@@ -264,7 +264,7 @@ const LdapConfigPanel = () => {
                 onClick={async () => {
                   setTestResult('Connexion en cours...');
                   try {
-                    const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ldap-config/test`, config);
+                    const res = await axios.post(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/ldap-config/test`, config);
                     setTestResult(`✅ Succès : ${res.data.message}`);
                   } catch (err) {
                     setTestResult(`❌ Erreur : ${err.response?.data?.message || err.message}`);
