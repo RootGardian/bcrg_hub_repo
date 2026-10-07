@@ -18,7 +18,7 @@ const authenticateLdap = async (identifier, password) => {
       },
       userPassword: password,
       userSearchBase: config.base_dn,
-      username: identifier,
+      username: identifier.includes('@') ? identifier.split('@')[0] : identifier,
       usernameFilter: `(|(${config.identifier_field || 'sAMAccountName'}={{username}})(mail={{username}})(employeeID={{username}}))`
     };
 
