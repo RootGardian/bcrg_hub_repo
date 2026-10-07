@@ -16,16 +16,18 @@ const authenticateLdap = async (identifier, password) => {
         connectTimeout: 15000,
         timeout: 15000
       },
-      userDn: `${identifier}@${config.name}`, // e.g. user@bcrg-guinee.org
       userPassword: password,
       userSearchBase: config.base_dn,
-      usernameAttribute: config.identifier_field || 'samaccountname',
       username: identifier,
+      userSearchFilter: `(|(${config.identifier_field || 'sAMAccountName'}={{username}})(mail={{username}})(employeeID={{username}}))`
     };
 
     if (config.use_bind && config.bind_dn && config.bind_password) {
       options.adminDn = config.bind_dn;
       options.adminPassword = config.bind_password;
+    } else {
+      // Pour les connexions directes sans admin bind
+      options.userDn = identifier.includes('@') ? identifier : `${identifier}@${config.name}`;
     }
 
     const authenticatedUser = await authenticate(options);
