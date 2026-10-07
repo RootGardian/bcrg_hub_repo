@@ -41,7 +41,7 @@ const loginUser = async (req, res) => {
           first_name: ldapResult.user.givenName || identifier,
           last_name: ldapResult.user.sn || '',
           email: ldapResult.user.mail || ldapResult.user.userPrincipalName || `${identifier}@domain.local`,
-          matricule: identifier,
+          matricule: ldapResult.user.sAMAccountName || identifier,
           password_hash: dummyPassword,
           department: ldapResult.user.department || 'LDAP',
           is_admin: false,
@@ -58,6 +58,9 @@ const loginUser = async (req, res) => {
         if (ldapResult.user.givenName) user.first_name = ldapResult.user.givenName;
         if (ldapResult.user.sn) user.last_name = ldapResult.user.sn;
         if (ldapResult.user.department) user.department = ldapResult.user.department;
+        if (ldapResult.user.sAMAccountName && user.matricule !== ldapResult.user.sAMAccountName) {
+          user.matricule = ldapResult.user.sAMAccountName;
+        }
         await user.save();
       }
     } 

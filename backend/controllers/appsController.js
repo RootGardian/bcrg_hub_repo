@@ -1,4 +1,4 @@
-const { User, Role, Application } = require('../models');
+const { User, Role, Application, LdapRoleMapping } = require('../models');
 const { Op } = require('sequelize');
 
 // Get apps available to the logged-in user (based on their roles)
@@ -24,11 +24,35 @@ const getMyApps = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-    // Vérifier si l'utilisateur a un rôle admin
-    let hasAdminRole = false;
-    if (user.Roles) {
-      hasAdminRole = user.Roles.some(r => r.name.toLowerCase().includes('admin'));
+    // Charger les rôles LDAP si l'utilisateur est concerné
+    let ldapRoles = [];
+    const baseEmail = user.email ? user.email.split('@')[0] : null;
+    const baseMatricule = user.matricule ? user.matricule.split('@')[0] : null;
+    const identifiers = [user.matricule, user.email, baseEmail, baseMatricule].filter(Boolean);
+    
+    if (identifiers.length > 0) {
+      const mappings = await LdapRoleMapping.findAll({
+        where: {
+          ldap_identifier: {
+            [Op.in]: identifiers
+          }
+        },
+        include: {
+          model: Role,
+          include: {
+            model: Application,
+            where: { status: 'Actif' },
+            required: false
+          }
+        }
+      });
+      ldapRoles = mappings.map(m => m.Role).filter(r => r != null);
     }
+
+    const allRoles = [...(user.Roles || []), ...ldapRoles];
+
+    // Vérifier si l'utilisateur a un rôle admin
+    let hasAdminRole = allRoles.some(r => r.name.toLowerCase().includes('admin'));
 
     // Si l'utilisateur est un Administrateur (en DB ou via Rôle), il a accès à toutes les applications actives
     if (user.is_admin || hasAdminRole) {
@@ -39,15 +63,13 @@ const getMyApps = async (req, res) => {
     // Utilisateur standard : Collecter les applications associées aux rôles ET directement à l'utilisateur
     const appsMap = new Map();
 
-    if (user.Roles) {
-      user.Roles.forEach(role => {
-        if (role.Applications) {
-          role.Applications.forEach(app => {
-            appsMap.set(app.id, app);
-          });
-        }
-      });
-    }
+    allRoles.forEach(role => {
+      if (role.Applications) {
+        role.Applications.forEach(app => {
+          appsMap.set(app.id, app);
+        });
+      }
+    });
 
     if (user.Applications) {
       user.Applications.forEach(app => {
