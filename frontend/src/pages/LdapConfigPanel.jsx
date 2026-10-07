@@ -313,19 +313,21 @@ const LdapConfigPanel = () => {
               ) : ldapUsersList.length > 0 ? (
                 <div className="ldap-table-container">
                   <table className="ldap-table">
-                    <thead><tr><th>Identifiant</th><th>Nom Complet</th><th>Email</th></tr></thead>
+                    <thead><tr><th>Identifiant</th><th>Matricule</th><th>Nom Complet</th><th>Email</th></tr></thead>
                     <tbody>
                       {ldapUsersList
                         .filter(u => 
                           (u.identifier || '').toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+                          (u.matricule || '').toLowerCase().includes(userSearchTerm.toLowerCase()) || 
                           (u.name || '').toLowerCase().includes(userSearchTerm.toLowerCase()) || 
                           (u.first_name + ' ' + u.last_name).toLowerCase().includes(userSearchTerm.toLowerCase())
                         )
                         .map((u, i) => (
                         <tr key={i}>
                           <td>{u.identifier}</td>
+                          <td>{u.matricule || 'N/A'}</td>
                           <td>{u.name || (u.first_name + ' ' + u.last_name)}</td>
-                          <td>{u.mail || 'N/A'}</td>
+                          <td>{u.email || 'N/A'}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -131,7 +131,7 @@ const getLdapUsers = async () => {
   if (!config) throw new Error("Aucune configuration LDAP active.");
   // Filter for users (Active Directory standard)
   const filter = '(&(objectCategory=person)(objectClass=user))';
-  const entries = await searchLdap(config, filter, ['cn', 'sAMAccountName', 'mail', 'givenName', 'sn']);
+  const entries = await searchLdap(config, filter, ['cn', 'sAMAccountName', 'mail', 'givenName', 'sn', 'userPrincipalName', 'employeeID', 'employeeNumber', 'description']);
   
   return entries.map(e => {
     const getAttr = (name) => {
@@ -141,7 +141,8 @@ const getLdapUsers = async () => {
     return {
       identifier: getAttr('sAMAccountName'),
       name: getAttr('cn'),
-      email: getAttr('mail'),
+      email: getAttr('mail') || getAttr('userPrincipalName'),
+      matricule: getAttr('employeeID') || getAttr('employeeNumber') || getAttr('description'),
       first_name: getAttr('givenName'),
       last_name: getAttr('sn')
     };
