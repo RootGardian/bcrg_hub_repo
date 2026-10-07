@@ -26,6 +26,7 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/apps', require('./routes/appsRoutes'));
+app.use('/api/ldap-config', require('./routes/ldapRoutes'));
 
 app.get('/', (req, res) => {
   res.send('API is running...');

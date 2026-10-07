@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Users,
@@ -18,9 +18,11 @@ import {
   ExternalLink,
   UserCheck,
   Edit,
-  Trash2
+  Trash2,
+  Database
 } from 'lucide-react';
 import './AdminPanel.css';
+import LdapConfigPanel from './LdapConfigPanel';
 
 const AppLogo = ({ app, size = 24 }) => {
   const [srcIndex, setSrcIndex] = useState(0);
@@ -109,7 +111,11 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const [assignResult, setAssignResult] = useState(null);
 
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
-  const [assignRoleForm, setAssignRoleForm] = useState({ user_id: '', role_id: '' });
+  const [assignRoleForm, setAssignRoleForm] = useState({ ldap_type: 'USER', ldap_identifier: '', role_id: '', ldap_name: '' });
+  
+  const [ldapUsers, setLdapUsers] = useState([]);
+  const [ldapGroups, setLdapGroups] = useState([]);
+  const [loadingLdap, setLoadingLdap] = useState(false);
   const [assignRoleResult, setAssignRoleResult] = useState(null);
 
   const [activeActionMenu, setActiveActionMenu] = useState(null);
@@ -133,7 +139,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get('http://localhost:5000/api/admin/stats', getConfig());
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/stats`, getConfig());
       setStats(data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
@@ -141,7 +147,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get('http://localhost:5000/api/admin/users', getConfig());
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users`, getConfig());
       setUsersList(data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
@@ -149,7 +155,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const fetchApps = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get('http://localhost:5000/api/admin/applications', getConfig());
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/applications`, getConfig());
       setApps(data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
@@ -157,7 +163,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get('http://localhost:5000/api/admin/roles', getConfig());
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles`, getConfig());
       setRoles(data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
@@ -178,7 +184,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
       if (editingAppId) {
         await axios.put(`http://localhost:5000/api/admin/applications/${editingAppId}`, newApp, getConfig());
       } else {
-        await axios.post('http://localhost:5000/api/admin/applications', newApp, getConfig());
+        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/applications`, newApp, getConfig());
       }
       setShowAppModal(false); setEditingAppId(null); showToast("Application sauvegardée avec succès");
       setNewApp({ name: '', url: '', description: '', auth_type: 'SSO', status: 'Actif', icon_url: '' });
@@ -191,7 +197,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
     e.preventDefault();
     try {
       if (assignForm.targetType === 'user') {
-        const { data } = await axios.post('http://localhost:5000/api/admin/users/assign-app', {
+        const { data } = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users/assign-app`, {
           user_id: assignForm.user_id,
           app_id: assignForm.app_id
         }, getConfig());
@@ -202,7 +208,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
           setAssignForm({ targetType: 'user', user_id: '', role_id: '', app_id: '' });
         }, 1200);
       } else {
-        const { data } = await axios.post('http://localhost:5000/api/admin/roles/assign-app', {
+        const { data } = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles/assign-app`, {
           role_id: assignForm.role_id,
           app_id: assignForm.app_id
         }, getConfig());
@@ -216,17 +222,30 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
     } catch (err) { showToast("Erreur lors de l'assignation de l'application", "error"); }
   };
 
+  const fetchLdapEntities = async () => {
+    setLoadingLdap(true);
+    try {
+      const resUsers = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ldap-config/users`);
+      setLdapUsers(resUsers.data || []);
+      const resGroups = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ldap-config/groups`);
+      setLdapGroups(resGroups.data || []);
+    } catch (err) {
+      console.error("Erreur lors de la récupération de l'AD", err);
+    } finally {
+      setLoadingLdap(false);
+    }
+  };
+
   const handleAssignRole = async (e) => {
     e.preventDefault();
-    if (!assignRoleForm.user_id || !assignRoleForm.role_id) {
-      setAssignRoleResult({ success: false, message: 'Veuillez sélectionner un utilisateur et un rôle' });
+    if (!assignRoleForm.ldap_identifier || !assignRoleForm.role_id) {
+      setAssignRoleResult({ success: false, message: 'Veuillez sélectionner une entité AD et un rôle' });
       return;
     }
     try {
       const configWithAuth = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
-      await axios.put(`http://localhost:5000/api/admin/users/${assignRoleForm.user_id}`, { role_id: assignRoleForm.role_id }, configWithAuth);
-      setAssignRoleResult({ success: true, message: 'Utilisateur ajouté au groupe de rôle avec succès !' });
-      fetchUsers();
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles/assign-ldap`, assignRoleForm, configWithAuth);
+      setAssignRoleResult({ success: true, message: 'Rôle assigné avec succès !' });
       setTimeout(() => { setShowAssignRoleModal(false); setAssignRoleResult(null); }, 2000);
     } catch (err) {
       setAssignRoleResult({ success: false, message: err.response?.data?.message || 'Erreur lors de l\'assignation' });
@@ -269,7 +288,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
       if (editingRoleId) {
         await axios.put(`http://localhost:5000/api/admin/roles/${editingRoleId}`, newRole, getConfig());
       } else {
-        await axios.post('http://localhost:5000/api/admin/roles', newRole, getConfig());
+        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles`, newRole, getConfig());
       }
       setShowRoleModal(false); setEditingRoleId(null); showToast("Rôle sauvegardé avec succès");
       setNewRole({ name: '', description: '' });
@@ -283,7 +302,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
       if (editingUserId) {
         await axios.put(`http://localhost:5000/api/admin/users/${editingUserId}`, newUser, getConfig());
       } else {
-        await axios.post('http://localhost:5000/api/admin/users', newUser, getConfig());
+        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users`, newUser, getConfig());
       }
       setShowUserModal(false); setEditingUserId(null); showToast('Utilisateur sauvegardé avec succès');
       setNewUser({ first_name: '', last_name: '', email: '', matricule: '', department: '', role_id: '', password: '' });
@@ -321,7 +340,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
       }
 
       try {
-        const { data } = await axios.post('http://localhost:5000/api/admin/users/import', { users: usersToImport }, getConfig());
+        const { data } = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users/import`, { users: usersToImport }, getConfig());
         setImportResult(data);
         fetchUsers(); fetchStats();
       } catch (err) {
@@ -365,6 +384,9 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
             </button>
             <button className={`admin-tab ${activeTab === 'roles' ? 'active' : ''}`} onClick={() => setActiveTab('roles')}>
               <ShieldCheck size={16} /> Rôles & Permissions
+            </button>
+            <button className={`admin-tab ${activeTab === 'ldap' ? 'active' : ''}`} onClick={() => setActiveTab('ldap')}>
+              <Database size={16} /> LDAP & AD
             </button>
           </div>
         </>
@@ -779,7 +801,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                     </div>
                   </div>
                   <div className="toolbar-right">
-                    <button className="btn-secondary-action" onClick={() => { fetchUsers(); fetchRoles(); setAssignRoleResult(null); setAssignRoleForm({user_id: '', role_id: ''}); setShowAssignRoleModal(true); }}>
+                    <button className="btn-secondary-action" onClick={() => { fetchRoles(); fetchLdapEntities(); setAssignRoleResult(null); setAssignRoleForm({ldap_type: 'USER', ldap_identifier: '', role_id: '', ldap_name: ''}); setShowAssignRoleModal(true); }}>
                       <UserCheck size={16} /> Ajouter un utilisateur à un rôle
                     </button>
                     <button className="btn-primary-action" onClick={() => { setNewRole({ name: '', description: '' }); setEditingRoleId(null); setShowRoleModal(true); }}>
@@ -1004,47 +1026,18 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
             <h3>Assigner une Application</h3>
             <form onSubmit={handleAssignApp}>
               <div className="form-group">
-                <label>Type d'attribution</label>
+                <label>Sélectionner le Groupe / Rôle</label>
                 <select
-                  value={assignForm.targetType}
-                  onChange={e => setAssignForm({ ...assignForm, targetType: e.target.value })}
+                  required
+                  value={assignForm.role_id}
+                  onChange={e => setAssignForm({ ...assignForm, targetType: 'role', role_id: e.target.value })}
                 >
-                  <option value="user">Utilisateur spécifique (Recommandé)</option>
-                  <option value="role">Rôle / Groupe</option>
+                  <option value="">Choisir un rôle...</option>
+                  {roles.map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
                 </select>
               </div>
-
-              {assignForm.targetType === 'user' ? (
-                <div className="form-group">
-                  <label>Sélectionner l'Utilisateur</label>
-                  <select
-                    required
-                    value={assignForm.user_id}
-                    onChange={e => setAssignForm({ ...assignForm, user_id: e.target.value })}
-                  >
-                    <option value="">Choisir un utilisateur...</option>
-                    {usersList.map(u => (
-                      <option key={u.id} value={u.id}>
-                        {u.first_name} {u.last_name} ({u.email} - Matricule: {u.matricule || 'N/A'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <div className="form-group">
-                  <label>Sélectionner le Rôle</label>
-                  <select
-                    required
-                    value={assignForm.role_id}
-                    onChange={e => setAssignForm({ ...assignForm, role_id: e.target.value })}
-                  >
-                    <option value="">Choisir un rôle...</option>
-                    {roles.map(r => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               <div className="form-group">
                 <label>Sélectionner l'Application</label>
@@ -1077,16 +1070,40 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
       {showAssignRoleModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3>Ajouter un utilisateur dans un groupe de rôle</h3>
+            <h3>Assigner un rôle à l'Active Directory</h3>
             <form onSubmit={handleAssignRole}>
+              
               <div className="form-group">
-                <label>Utilisateur</label>
-                <select value={assignRoleForm.user_id} onChange={e => setAssignRoleForm({ ...assignRoleForm, user_id: e.target.value })}>
-                  <option value="">Choisir un utilisateur...</option>
-                  {usersList.map(u => (
-                    <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.matricule})</option>
-                  ))}
-                </select>
+                <label>Type d'entité</label>
+                <div style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
+                  <label>
+                    <input type="radio" name="ldap_type" value="USER" checked={assignRoleForm.ldap_type === 'USER'} onChange={e => setAssignRoleForm({ ...assignRoleForm, ldap_type: e.target.value, ldap_identifier: '', ldap_name: '' })} /> Utilisateur AD
+                  </label>
+                  <label>
+                    <input type="radio" name="ldap_type" value="GROUP" checked={assignRoleForm.ldap_type === 'GROUP'} onChange={e => setAssignRoleForm({ ...assignRoleForm, ldap_type: e.target.value, ldap_identifier: '', ldap_name: '' })} /> Groupe AD
+                  </label>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>{assignRoleForm.ldap_type === 'USER' ? 'Utilisateur AD' : 'Groupe AD'}</label>
+                {loadingLdap ? (
+                  <div style={{ padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>Chargement depuis l'Active Directory...</div>
+                ) : (
+                  <select value={assignRoleForm.ldap_identifier} onChange={e => {
+                    const id = e.target.value;
+                    const name = e.target.options[e.target.selectedIndex].text;
+                    setAssignRoleForm({ ...assignRoleForm, ldap_identifier: id, ldap_name: name });
+                  }}>
+                    <option value="">Sélectionner...</option>
+                    {assignRoleForm.ldap_type === 'USER' && ldapUsers.map(u => (
+                      <option key={u.identifier} value={u.identifier}>{u.name || u.first_name + ' ' + u.last_name} ({u.identifier})</option>
+                    ))}
+                    {assignRoleForm.ldap_type === 'GROUP' && ldapGroups.map(g => (
+                      <option key={g.identifier} value={g.identifier}>{g.name} {g.description ? `(${g.description})` : ''}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="form-group">
@@ -1114,6 +1131,14 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
         </div>
       )}
 
+      <div className="admin-content">
+        {/* L'accolade fermante pour 'roles' est déjà plus haut, je dois juste ajouter au niveau root du admin-content */}
+            {activeTab === 'ldap' && (
+              <div style={{ minHeight: 'calc(100vh - 200px)' }}>
+                <LdapConfigPanel />
+              </div>
+            )}
+      </div>
     </div>
   );
 };

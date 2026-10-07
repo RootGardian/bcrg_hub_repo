@@ -10,7 +10,8 @@ import {
   ChevronLeft, 
   ChevronDown, 
   LogOut, 
-  Calendar 
+  Calendar,
+  Database
 } from 'lucide-react';
 import logo from '../assets/bcrg_logo_seul_inverse_144.png';
 import AdminPanel from './AdminPanel';
@@ -74,6 +75,11 @@ const AdminDashboard = () => {
           title: "Droits & Habilitations (RBAC)",
           subtitle: "Définissez les rôles d'accès et attribuez les applications autorisées par profil utilisateur."
         };
+      case 'ldap':
+        return {
+          title: "Configuration LDAP & AD",
+          subtitle: "Gérez la connexion à vos annuaires Active Directory pour l'authentification centralisée."
+        };
       default:
         return {
           title: "Tableau de bord administration",
@@ -109,19 +115,20 @@ const AdminDashboard = () => {
               <AppWindow size={20} className="nav-icon" />
               {isSidebarOpen && <span>Applications</span>}
             </li>
-            <li 
-              className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
-              onClick={() => setActiveTab('users')}
-            >
-              <Users size={20} className="nav-icon" />
-              {isSidebarOpen && <span>Utilisateurs</span>}
-            </li>
+
             <li 
               className={`nav-item ${activeTab === 'roles' ? 'active' : ''}`}
               onClick={() => setActiveTab('roles')}
             >
               <ShieldCheck size={20} className="nav-icon" />
               {isSidebarOpen && <span>Rôles & Accès</span>}
+            </li>
+            <li 
+              className={`nav-item ${activeTab === 'ldap' ? 'active' : ''}`}
+              onClick={() => setActiveTab('ldap')}
+            >
+              <Database size={20} className="nav-icon" />
+              {isSidebarOpen && <span>LDAP & AD</span>}
             </li>
             
             <li 

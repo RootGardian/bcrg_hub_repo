@@ -2,6 +2,8 @@ const { sequelize } = require('../config/db');
 const User = require('./User');
 const Role = require('./Role');
 const Application = require('./Application');
+const LdapConfig = require('./LdapConfig');
+const LdapRoleMapping = require('./LdapRoleMapping');
 
 User.belongsToMany(Role, { through: 'user_roles', foreignKey: 'user_id', otherKey: 'role_id', timestamps: false });
 Role.belongsToMany(User, { through: 'user_roles', foreignKey: 'role_id', otherKey: 'user_id', timestamps: false });
@@ -12,9 +14,14 @@ Role.belongsToMany(Application, { through: 'role_applications', foreignKey: 'rol
 User.belongsToMany(Application, { through: 'user_applications', foreignKey: 'user_id', otherKey: 'application_id', timestamps: false });
 Application.belongsToMany(User, { through: 'user_applications', foreignKey: 'application_id', otherKey: 'user_id', timestamps: false });
 
+Role.hasMany(LdapRoleMapping, { foreignKey: 'role_id' });
+LdapRoleMapping.belongsTo(Role, { foreignKey: 'role_id' });
+
 module.exports = {
   sequelize,
   User,
   Role,
-  Application
+  Application,
+  LdapConfig,
+  LdapRoleMapping
 };

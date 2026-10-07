@@ -2,7 +2,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
-const { User, Role } = require('../models');
+const { User, Role, LdapRoleMapping } = require('../models');
+const { authenticateLdap } = require('../services/ldapService');
 
 const privateKeyPath = path.join(__dirname, '../private.pem');
 const privateKey = fs.existsSync(privateKeyPath) ? fs.readFileSync(privateKeyPath, 'utf8') : process.env.JWT_SECRET;
@@ -15,7 +16,8 @@ const loginUser = async (req, res) => {
   const { identifier, password } = req.body; // we'll pass 'identifier' from frontend instead of just matricule
 
   try {
-    const user = await User.findOne({ 
+    // 1. Essayer de trouver l'utilisateur localement
+    let user = await User.findOne({ 
       where: {
         [Op.or]: [
           { matricule: identifier || '' },
@@ -25,7 +27,73 @@ const loginUser = async (req, res) => {
       include: Role
     });
 
-    if (user && (await bcrypt.compare(password, user.password_hash))) {
+    let isAuthenticated = false;
+
+    // 2. Tenter LDAP en premier si une config active existe
+    const ldapResult = await authenticateLdap(identifier, password);
+    
+    if (ldapResult.success) {
+      isAuthenticated = true;
+      // Si l'utilisateur n'existe pas localement, on le crée
+      if (!user) {
+        const salt = await bcrypt.genSalt(10);
+        const dummyPassword = await bcrypt.hash(password, salt); // Juste pour remplir la contrainte DB
+        user = await User.create({
+          first_name: ldapResult.user.givenName || identifier,
+          last_name: ldapResult.user.sn || '',
+          email: ldapResult.user.mail || `${identifier}@domain.local`,
+          matricule: identifier,
+          password_hash: dummyPassword,
+          department: ldapResult.user.department || 'LDAP',
+          is_admin: false,
+          is_active: true
+        });
+        // Recharge avec les rôles (vide par défaut)
+        user = await User.findByPk(user.id, { include: Role });
+      }
+    } 
+    // 3. Sinon, on vérifie localement
+    else if (user && (await bcrypt.compare(password, user.password_hash))) {
+      isAuthenticated = true;
+    }
+
+    if (isAuthenticated) {
+      // 4. Charger les rôles depuis LdapRoleMapping
+      let dynamicRoles = [];
+      if (ldapResult && ldapResult.success) {
+        // Collecter les identifiants LDAP (nom d'utilisateur + les DN ou CN des groupes)
+        const ldapUser = ldapResult.user;
+        const identifiers = [identifier]; // sAMAccountName ou autre identifiant utilisé pour la connexion
+        
+        // Ajouter les groupes de l'utilisateur (memberOf peut être un string ou un tableau de strings)
+        if (ldapUser.memberOf) {
+          const groups = Array.isArray(ldapUser.memberOf) ? ldapUser.memberOf : [ldapUser.memberOf];
+          groups.forEach(g => {
+            // Extraire le CN du DN du groupe, ou garder le DN entier selon comment on a configuré le LdapRoleMapping
+            const cnMatch = g.match(/CN=([^,]+)/i);
+            if (cnMatch) identifiers.push(cnMatch[1]);
+            identifiers.push(g);
+          });
+        }
+
+        // Trouver tous les mappings correspondant à ces identifiants
+        const mappings = await LdapRoleMapping.findAll({
+          where: {
+            ldap_identifier: {
+              [Op.in]: identifiers
+            }
+          },
+          include: Role
+        });
+        
+        dynamicRoles = mappings.map(m => m.Role).filter(r => r != null);
+      }
+      
+      // Combiner rôles locaux + rôles dynamiques LDAP
+      const localRoles = user.Roles || [];
+      const allRolesMap = new Map();
+      [...localRoles, ...dynamicRoles].forEach(r => allRolesMap.set(r.id, r));
+      const combinedRoles = Array.from(allRolesMap.values());
       res.json({
         id: user.id,
         first_name: user.first_name,
@@ -35,11 +103,11 @@ const loginUser = async (req, res) => {
         department: user.department,
         is_admin: user.is_admin,
         is_active: user.is_active,
-        roles: user.Roles,
+        roles: combinedRoles,
         token: generateToken(user.id),
       });
     } else {
-      res.status(401).json({ message: 'Matricule ou mot de passe invalide' });
+      res.status(401).json({ message: 'Identifiant ou mot de passe invalide' });
     }
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });

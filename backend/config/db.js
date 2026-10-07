@@ -9,6 +9,12 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST || 'localhost',
     dialect: 'postgres',
     logging: false,
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false // Required for some remote DBs like Render
+      }
+    },
     define: {
       timestamps: false // Les tables fournies n'ont que created_at, pas de updated_at
     }

@@ -1,4 +1,4 @@
-const { User, Role, Application } = require('../models');
+const { User, Role, Application, LdapRoleMapping } = require('../models');
 const bcrypt = require('bcryptjs');
 
 const getDashboardStats = async (req, res) => {
@@ -226,7 +226,29 @@ const deleteRole = async (req, res) => {
   } catch (error) { res.status(500).json({ message: 'Erreur delete role', error: error.message }); }
 };
 
+const assignLdapRole = async (req, res) => {
+  try {
+    const { role_id, ldap_type, ldap_identifier, ldap_name } = req.body;
+    
+    if (!role_id || !ldap_type || !ldap_identifier) {
+      return res.status(400).json({ message: 'Données manquantes' });
+    }
+
+    const mapping = await LdapRoleMapping.create({
+      role_id,
+      ldap_type,
+      ldap_identifier,
+      ldap_name
+    });
+
+    res.status(201).json({ message: 'Rôle assigné à l\'entité LDAP avec succès', mapping });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors de l\'assignation LDAP', error: error.message });
+  }
+};
+
 // Export overrides will be replaced by multi_replace_file_content
+
 
 
 module.exports = {
@@ -245,5 +267,6 @@ module.exports = {
   updateUser,
   deleteUser,
   updateRole,
-  deleteRole
+  deleteRole,
+  assignLdapRole
 };

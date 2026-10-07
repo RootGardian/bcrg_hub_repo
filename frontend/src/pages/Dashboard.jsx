@@ -82,7 +82,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchMyApps = async () => {
       try {
-        const { data } = await axios.get('http://localhost:5000/api/apps/my-apps', {
+        const { data } = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/apps/my-apps`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMyApps(data);
