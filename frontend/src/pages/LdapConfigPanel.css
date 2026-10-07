@@ -221,3 +221,60 @@
   color: white;
   font-weight: 500;
 }
+/* LDAP Table Styles */
+.ldap-table-container {
+  max-height: 450px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background-color: white;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.ldap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.ldap-table th, .ldap-table td {
+  padding: 12px 20px;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.ldap-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.ldap-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.ldap-table tbody tr:hover {
+  background-color: #f1f3f5;
+}
+
+.ldap-table tbody td {
+  color: #333;
+}
+
+.btn-refresh {
+  background-color: #17a2b8 !important;
+  box-shadow: 0 2px 4px rgba(23,162,184,0.3);
+  transition: all 0.2s;
+}
+
+.btn-refresh:hover {
+  background-color: #138496 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(23,162,184,0.4);
+}

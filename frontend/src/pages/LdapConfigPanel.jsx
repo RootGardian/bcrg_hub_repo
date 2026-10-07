@@ -292,7 +292,7 @@ const LdapConfigPanel = () => {
               <p style={{marginBottom: '20px', color: '#666'}}>Aperçu en temps réel des utilisateurs présents dans l'Active Directory.</p>
               
               <div style={{display: 'flex', gap: '15px', marginBottom: '20px'}}>
-                <button className="btn-add" onClick={() => setActiveTab('config')} style={{backgroundColor: '#17a2b8'}}><Activity size={16} style={{marginRight: '8px'}} /> Rafraîchir la connexion</button>
+                <button className="btn-add btn-refresh" onClick={() => setActiveTab('config')} style={{backgroundColor: '#17a2b8'}}><Activity size={16} style={{marginRight: '8px'}} /> Rafraîchir la connexion</button>
               </div>
 
               {loadingLdapData ? (
@@ -300,8 +300,8 @@ const LdapConfigPanel = () => {
                   Chargement depuis l'Active Directory en cours...
                 </div>
               ) : ldapUsersList.length > 0 ? (
-                <div style={{maxHeight: '400px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '4px'}}>
-                  <table className="admin-table">
+                <div className="ldap-table-container">
+                  <table className="ldap-table">
                     <thead><tr><th>Identifiant</th><th>Nom Complet</th><th>Email</th></tr></thead>
                     <tbody>
                       {ldapUsersList.map((u, i) => (
@@ -332,8 +332,8 @@ const LdapConfigPanel = () => {
                   Chargement depuis l'Active Directory en cours...
                 </div>
               ) : ldapGroupsList.length > 0 ? (
-                <div style={{maxHeight: '400px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '4px'}}>
-                  <table className="admin-table">
+                <div className="ldap-table-container">
+                  <table className="ldap-table">
                     <thead><tr><th>Identifiant / DN</th><th>Nom</th><th>Description</th></tr></thead>
                     <tbody>
                       {ldapGroupsList.map((g, i) => (
