@@ -140,7 +140,7 @@ body, html {
   color: #a0b2c1;
 }
 
-.input-container input {
+.login-container .input-container input {
   width: 100%;
   padding: 14px 45px;
   border: 1px solid #e1e7ec;
@@ -151,12 +151,12 @@ body, html {
   outline: none;
 }
 
-.input-container input:focus {
+.login-container .input-container input:focus {
   border-color: #1a3c2c;
   box-shadow: 0 0 0 3px rgba(26, 60, 44, 0.1);
 }
 
-.input-container input::placeholder {
+.login-container .input-container input::placeholder {
   color: #a0b2c1;
 }
 
