@@ -13,60 +13,82 @@ const { Op } = require('sequelize');
 
 // @desc    Auth user & get token
 const loginUser = async (req, res) => {
-  const { identifier, password } = req.body; // we'll pass 'identifier' from frontend instead of just matricule
+  const { identifier, password } = req.body; 
 
   try {
-    // 1. Essayer de trouver l'utilisateur localement
-    let user = await User.findOne({ 
-      where: {
-        [Op.or]: [
-          { matricule: identifier || '' },
-          { email: identifier || '' }
-        ]
-      },
-      include: Role
-    });
-
+    let user = null;
     let isAuthenticated = false;
+    let ldapResult = null;
 
-    // 2. Tenter LDAP en premier si une config active existe
-    const ldapResult = await authenticateLdap(identifier, password);
-    
-    if (ldapResult.success) {
+    // 1. Tenter LDAP en premier (si une config active existe)
+    try {
+      ldapResult = await authenticateLdap(identifier, password);
+    } catch (e) {
+      console.log("LDAP bypass, trying local db");
+    }
+
+    if (ldapResult && ldapResult.success) {
       isAuthenticated = true;
+      const sAMAccountName = ldapResult.user.sAMAccountName;
+      const mail = ldapResult.user.mail || ldapResult.user.userPrincipalName;
+      
+      // Chercher l'utilisateur avec son sAMAccountName ou mail
+      user = await User.findOne({
+        where: {
+          [Op.or]: [
+            { matricule: sAMAccountName || identifier },
+            { email: mail || identifier },
+            { matricule: identifier },
+            { email: identifier }
+          ]
+        },
+        include: Role
+      });
+
       if (!user) {
         const salt = await bcrypt.genSalt(10);
-        const dummyPassword = await bcrypt.hash(password, salt); // Juste pour remplir la contrainte DB
+        const dummyPassword = await bcrypt.hash(password, salt); 
         user = await User.create({
           first_name: ldapResult.user.givenName || identifier,
           last_name: ldapResult.user.sn || '',
-          email: ldapResult.user.mail || ldapResult.user.userPrincipalName || `${identifier}@domain.local`,
-          matricule: ldapResult.user.sAMAccountName || identifier,
+          email: mail || `${identifier}@domain.local`,
+          matricule: sAMAccountName || identifier,
           password_hash: dummyPassword,
           department: ldapResult.user.department || 'LDAP',
           is_admin: false,
           is_active: true
         });
-        // Recharge avec les rôles (vide par défaut)
         user = await User.findByPk(user.id, { include: Role });
       } else {
-        // Mettre à jour l'email et les infos si nécessaire
-        const newEmail = ldapResult.user.mail || ldapResult.user.userPrincipalName;
-        if (newEmail && (user.email.includes('@domain.local') || user.email !== newEmail)) {
-          user.email = newEmail;
-        }
+        // MAJ
+        if (mail && user.email !== mail && user.email.includes('@domain.local')) user.email = mail;
         if (ldapResult.user.givenName) user.first_name = ldapResult.user.givenName;
         if (ldapResult.user.sn) user.last_name = ldapResult.user.sn;
         if (ldapResult.user.department) user.department = ldapResult.user.department;
-        if (ldapResult.user.sAMAccountName && user.matricule !== ldapResult.user.sAMAccountName) {
-          user.matricule = ldapResult.user.sAMAccountName;
+        if (sAMAccountName && user.matricule !== sAMAccountName) {
+           // check if another user has this sAMAccountName
+           const existing = await User.findOne({ where: { matricule: sAMAccountName } });
+           if (!existing || existing.id === user.id) {
+             user.matricule = sAMAccountName;
+           }
         }
         await user.save();
       }
-    } 
-    // 3. Sinon, on vérifie localement
-    else if (user && (await bcrypt.compare(password, user.password_hash))) {
-      isAuthenticated = true;
+    } else {
+      // 2. Sinon, on vérifie localement
+      user = await User.findOne({ 
+        where: {
+          [Op.or]: [
+            { matricule: identifier || '' },
+            { email: identifier || '' }
+          ]
+        },
+        include: Role
+      });
+
+      if (user && (await bcrypt.compare(password, user.password_hash))) {
+        isAuthenticated = true;
+      }
     }
 
     if (isAuthenticated) {
