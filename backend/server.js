@@ -10,8 +10,41 @@ require('./models'); // Load models and associations
 
 // Connect to database
 connectDB().then(() => {
-  sequelize.sync({ alter: true }).then(() => {
+  sequelize.sync({ alter: true }).then(async () => {
     console.log('Database synced');
+    
+    // Create Default Admin
+    const bcrypt = require('bcryptjs');
+    const { User } = require('./models');
+
+    try {
+      const adminEmail = process.env.DEFAULT_ADMIN_EMAIL;
+      const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+      const adminMatricule = process.env.DEFAULT_ADMIN_MATRICULE || 'ADMIN001';
+
+      if (adminEmail && adminPassword) {
+        const existingAdmin = await User.findOne({ where: { email: adminEmail } });
+        if (!existingAdmin) {
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(adminPassword, salt);
+          await User.create({
+            matricule: adminMatricule,
+            email: adminEmail,
+            password_hash: hashedPassword,
+            first_name: 'Super',
+            last_name: 'Admin',
+            department: 'IT',
+            is_active: true,
+            is_admin: true
+          });
+          console.log('✅ Default Admin created successfully.');
+        } else {
+          console.log('ℹ️ Default Admin already exists.');
+        }
+      }
+    } catch (err) {
+      console.error('❌ Error creating default admin:', err);
+    }
   });
 });
 
