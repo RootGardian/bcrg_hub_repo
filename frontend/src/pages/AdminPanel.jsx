@@ -182,7 +182,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
     e.preventDefault();
     try {
       if (editingAppId) {
-        await axios.put(`http://localhost:5000/api/admin/applications/${editingAppId}`, newApp, getConfig());
+        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/applications/${editingAppId}`, newApp, getConfig());
       } else {
         await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/applications`, newApp, getConfig());
       }
@@ -255,7 +255,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const handleDeleteApp = async (id) => {
     requestConfirm('Êtes-vous sûr de vouloir supprimer cette application ?', async () => {
       try {
-        await axios.delete(`http://localhost:5000/api/admin/applications/${id}`, getConfig());
+        await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/applications/${id}`, getConfig());
         showToast("Application supprimée avec succès");
         fetchApps(); fetchStats();
       } catch (err) { showToast("Erreur lors de la suppression de l'application", "error"); }
@@ -265,7 +265,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const handleDeleteUser = async (id) => {
     requestConfirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?', async () => {
       try {
-        await axios.delete(`http://localhost:5000/api/admin/users/${id}`, getConfig());
+        await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users/${id}`, getConfig());
         showToast("Utilisateur supprimé avec succès");
         fetchUsers(); fetchStats();
       } catch (err) { showToast("Erreur lors de la suppression de l'utilisateur", "error"); }
@@ -275,7 +275,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const handleDeleteRole = async (id) => {
     requestConfirm('Êtes-vous sûr de vouloir supprimer ce rôle ?', async () => {
       try {
-        await axios.delete(`http://localhost:5000/api/admin/roles/${id}`, getConfig());
+        await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles/${id}`, getConfig());
         showToast("Rôle supprimé avec succès");
         fetchRoles(); fetchStats();
       } catch (err) { showToast("Erreur lors de la suppression du rôle", "error"); }
@@ -286,7 +286,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
     e.preventDefault();
     try {
       if (editingRoleId) {
-        await axios.put(`http://localhost:5000/api/admin/roles/${editingRoleId}`, newRole, getConfig());
+        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles/${editingRoleId}`, newRole, getConfig());
       } else {
         await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/roles`, newRole, getConfig());
       }
@@ -300,7 +300,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
     e.preventDefault();
     try {
       if (editingUserId) {
-        await axios.put(`http://localhost:5000/api/admin/users/${editingUserId}`, newUser, getConfig());
+        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users/${editingUserId}`, newUser, getConfig());
       } else {
         await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users`, newUser, getConfig());
       }
