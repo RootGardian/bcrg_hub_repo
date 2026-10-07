@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Save, Trash2, Activity, Users, Settings, Database, Server, Info, Search, List, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { Save, Trash2, Activity, Users, Settings, Database, Server, Info, Search, List, ChevronRight, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
 import './LdapConfigPanel.css';
 
 const LdapConfigPanel = () => {
@@ -23,7 +23,8 @@ const LdapConfigPanel = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('config');
-  const [testResult, setTestResult] = useState(null);
+  const [testStatus, setTestStatus] = useState('idle'); // idle, testing, success, error
+  const [testDetails, setTestDetails] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [groupSearchTerm, setGroupSearchTerm] = useState('');
@@ -256,33 +257,106 @@ const LdapConfigPanel = () => {
 
           {activeTab === 'tester' && (
             <div className="ldap-test-panel">
-              <h4>Test de connexion à l'annuaire principal</h4>
-              <p style={{marginBottom: '20px', color: '#666'}}>Vérifiez si les paramètres fournis permettent de se connecter correctement à l'Active Directory.</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                <Server size={24} color="#0284c7" />
+                <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b' }}>Diagnostic de Connexion Active Directory</h4>
+              </div>
+              <p style={{marginBottom: '20px', color: '#64748b'}}>Cliquez sur le bouton ci-dessous pour lancer une série de tests afin de vérifier que l'annuaire est bien joignable et que les identifiants de service sont corrects.</p>
               
               <button 
-                className="btn-save" 
+                className="btn-primary-action" 
+                disabled={testStatus === 'testing'}
+                style={{ marginBottom: '20px' }}
                 onClick={async () => {
-                  setTestResult('Connexion en cours...');
+                  setTestStatus('testing');
+                  setTestDetails(null);
                   try {
                     const res = await axios.post(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/ldap-config/test`, config);
-                    setTestResult(`✅ Succès : ${res.data.message}`);
+                    setTestStatus('success');
+                    setTestDetails({ message: res.data.message });
                   } catch (err) {
-                    setTestResult(`❌ Erreur : ${err.response?.data?.message || err.message}`);
+                    setTestStatus('error');
+                    setTestDetails({ message: err.response?.data?.message || err.message });
                   }
                 }}
               >
-                <Activity size={16} /> Lancer le test
+                <Activity size={18} className={testStatus === 'testing' ? 'spin-icon' : ''} /> 
+                {testStatus === 'testing' ? 'Analyse en cours...' : 'Lancer le diagnostic'}
               </button>
               
-              {testResult && (
+              {testStatus !== 'idle' && (
                 <div style={{
-                  marginTop: '20px', padding: '15px', borderRadius: '4px',
-                  backgroundColor: testResult.includes('Succès') ? '#e8f5e9' : (testResult.includes('Erreur') ? '#ffebee' : '#e3f2fd'),
+                  padding: '20px', 
+                  borderRadius: '8px',
+                  backgroundColor: testStatus === 'testing' ? '#f8fafc' : (testStatus === 'success' ? '#f0fdf4' : '#fef2f2'),
                   border: '1px solid',
-                  borderColor: testResult.includes('Succès') ? '#c8e6c9' : (testResult.includes('Erreur') ? '#ffcdd2' : '#bbdefb'),
-                  color: testResult.includes('Succès') ? '#2e7d32' : (testResult.includes('Erreur') ? '#c62828' : '#1565c0')
+                  borderColor: testStatus === 'testing' ? '#e2e8f0' : (testStatus === 'success' ? '#bbf7d0' : '#fecaca'),
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                 }}>
-                  {testResult}
+                  <h5 style={{ 
+                    margin: '0 0 15px 0', 
+                    fontSize: '1rem',
+                    color: testStatus === 'testing' ? '#334155' : (testStatus === 'success' ? '#166534' : '#991b1b'),
+                    display: 'flex', alignItems: 'center', gap: '8px'
+                  }}>
+                    {testStatus === 'testing' && <Activity size={18} />}
+                    {testStatus === 'success' && <CheckCircle2 size={18} />}
+                    {testStatus === 'error' && <AlertTriangle size={18} />}
+                    {testStatus === 'testing' ? "Tests en cours d'exécution..." : 
+                     testStatus === 'success' ? "Diagnostic Réussi" : "Échec du Diagnostic"}
+                  </h5>
+
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    
+                    <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      <div style={{ marginTop: '2px', color: (testStatus === 'success' || testStatus === 'error') ? '#22c55e' : '#cbd5e1' }}>
+                        {(testStatus === 'success' || testStatus === 'error') ? <CheckCircle2 size={16} /> : <div style={{width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #cbd5e1'}}></div>}
+                      </div>
+                      <div>
+                        <strong>1. Résolution & Ping IP</strong>
+                        <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: '#64748b' }}>Cible : <code>{config.server}</code></p>
+                        {testStatus === 'error' && testDetails?.message?.includes('ENOTFOUND') && (
+                          <div style={{ marginTop: '5px', fontSize: '0.85rem', color: '#b91c1c' }}>Le nom de domaine ou l'IP est introuvable.</div>
+                        )}
+                      </div>
+                    </li>
+
+                    <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      <div style={{ marginTop: '2px', color: (testStatus === 'success' || (testStatus === 'error' && !testDetails?.message?.match(/ETIMEDOUT|ECONNREFUSED|ENOTFOUND/))) ? '#22c55e' : (testStatus === 'error' ? '#ef4444' : '#cbd5e1') }}>
+                        {(testStatus === 'success' || (testStatus === 'error' && !testDetails?.message?.match(/ETIMEDOUT|ECONNREFUSED|ENOTFOUND/))) ? <CheckCircle2 size={16} /> : (testStatus === 'error' ? <AlertTriangle size={16} /> : <div style={{width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #cbd5e1'}}></div>)}
+                      </div>
+                      <div>
+                        <strong>2. Ouverture du Port Réseau</strong>
+                        <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: '#64748b' }}>Port : <code>{config.port}</code></p>
+                        {testStatus === 'error' && testDetails?.message?.includes('ECONNREFUSED') && (
+                          <div style={{ marginTop: '5px', fontSize: '0.85rem', color: '#b91c1c' }}>Le port est fermé ou bloqué par un pare-feu.</div>
+                        )}
+                        {testStatus === 'error' && testDetails?.message?.includes('ETIMEDOUT') && (
+                          <div style={{ marginTop: '5px', fontSize: '0.85rem', color: '#b91c1c' }}>Délai d'attente dépassé (Timeout). Le serveur ne répond pas.</div>
+                        )}
+                      </div>
+                    </li>
+
+                    <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      <div style={{ marginTop: '2px', color: testStatus === 'success' ? '#22c55e' : (testStatus === 'error' && !testDetails?.message?.match(/ETIMEDOUT|ECONNREFUSED|ENOTFOUND/) ? '#ef4444' : '#cbd5e1') }}>
+                        {testStatus === 'success' ? <CheckCircle2 size={16} /> : (testStatus === 'error' && !testDetails?.message?.match(/ETIMEDOUT|ECONNREFUSED|ENOTFOUND/) ? <AlertTriangle size={16} /> : <div style={{width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #cbd5e1'}}></div>)}
+                      </div>
+                      <div>
+                        <strong>3. Authentification de Service (Bind)</strong>
+                        <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: '#64748b' }}>Compte : <code>{config.bind_dn}</code></p>
+                        {testStatus === 'error' && testDetails?.message?.includes('Invalid Credentials') && (
+                          <div style={{ marginTop: '5px', fontSize: '0.85rem', color: '#b91c1c' }}>Le compte de service ou son mot de passe est incorrect.</div>
+                        )}
+                        {testStatus === 'error' && testDetails?.message?.includes('NoSuchObject') && (
+                          <div style={{ marginTop: '5px', fontSize: '0.85rem', color: '#b91c1c' }}>Ce compte n'existe pas dans l'arborescence (Base DN invalide ?).</div>
+                        )}
+                        {testStatus === 'error' && !testDetails?.message?.match(/ETIMEDOUT|ECONNREFUSED|ENOTFOUND|Invalid Credentials|NoSuchObject/) && (
+                          <div style={{ marginTop: '5px', fontSize: '0.85rem', color: '#b91c1c' }}>Erreur LDAP : {testDetails.message}</div>
+                        )}
+                      </div>
+                    </li>
+
+                  </ul>
                 </div>
               )}
             </div>
