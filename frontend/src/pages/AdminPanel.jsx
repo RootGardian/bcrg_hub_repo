@@ -671,12 +671,6 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
 
                   </div>
                   <div className="toolbar-right">
-                    <button className="btn-secondary-action" onClick={() => setShowImportModal(true)}>
-                      <Upload size={16} /> Import CSV / XLSX
-                    </button>
-                    <button className="btn-primary-action" onClick={() => { setNewUser({ first_name: '', last_name: '', email: '', matricule: '', department: '', role_id: '', password: '' }); setEditingUserId(null); fetchRoles(); setShowUserModal(true); }}>
-                      <Plus size={18} /> Nouvel Utilisateur
-                    </button>
                   </div>
                 </div>
 
@@ -738,7 +732,6 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                                   {activeActionMenu === `user-${u.id}` && (
                                     <div className="action-menu-dropdown">
                                       <button className="action-menu-item" onClick={() => { setAssignForm({ ...assignForm, targetType: 'user', user_id: u.id }); setShowAssignModal(true); setActiveActionMenu(null); }}><Key size={16} className="action-menu-icon" /> Assigner App</button>
-                                      <button className="action-menu-item" onClick={() => { setNewUser({ first_name: u.first_name, last_name: u.last_name, email: u.email, matricule: u.matricule, department: u.department, role_id: u.Role ? u.Role.id : '' }); setEditingUserId(u.id); setShowUserModal(true); setActiveActionMenu(null); }}><Edit size={16} className="action-menu-icon" /> Modifier</button>
                                       <button className="action-menu-item delete" onClick={() => { handleDeleteUser(u.id); setActiveActionMenu(null); }}><Trash2 size={16} className="action-menu-icon" /> Supprimer</button>
                                     </div>
                                   )}
@@ -946,80 +939,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
         </div>
       )}
 
-      {/* Modal Ajout Utilisateur */}
-      {showUserModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>{editingUserId ? "Modifier l'Utilisateur" : "Nouveau Compte Employé"}</h3>
-            <form onSubmit={handleCreateUser}>
-              <div className="form-group">
-                <label>Prénom</label>
-                <input required value={newUser.first_name} onChange={e => setNewUser({ ...newUser, first_name: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Nom</label>
-                <input required value={newUser.last_name} onChange={e => setNewUser({ ...newUser, last_name: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Email Professionnel</label>
-                <input required type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} placeholder="ex: m.diallo@bcrg-guinee.org" />
-              </div>
-              <div className="form-group">
-                <label>Matricule BCRG</label>
-                <input required value={newUser.matricule} onChange={e => setNewUser({ ...newUser, matricule: e.target.value })} placeholder="ex: 2005" />
-              </div>
-              <div className="form-group">
-                <label>Département / Direction</label>
-                <input value={newUser.department} onChange={e => setNewUser({ ...newUser, department: e.target.value })} placeholder="ex: Informatique & Systèmes" />
-              </div>
-              <div className="form-group">
-                <label>Rôle initial</label>
-                <select value={newUser.role_id} onChange={e => setNewUser({ ...newUser, role_id: e.target.value })}>
-                  <option value="">Sélectionner un rôle...</option>
-                  {roles.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Mot de passe {editingUserId && "(Laissez vide pour ne pas modifier)"}</label>
-                <input type="password" value={newUser.password || ''} onChange={e => setNewUser({ ...newUser, password: e.target.value })} placeholder="Mot de passe" required={!editingUserId} />
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary-action" onClick={() => setShowUserModal(false)}>Annuler</button>
-                <button type="submit" className="btn-primary-action">{editingUserId ? 'Sauvegarder' : "Créer l'utilisateur"}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {/* Modal Importation CSV */}
-      {showImportModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>Importation en Masse (CSV / XLSX)</h3>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '20px' }}>
-              Format attendu: Matricule, Nom, Prénom, Email, Département, Rôle
-            </p>
-            <form onSubmit={handleImportCSV}>
-              <div className="form-group">
-                <label>Sélectionner le fichier .csv</label>
-                <input type="file" accept=".csv" onChange={e => setImportFile(e.target.files[0])} required />
-              </div>
-              {importResult && (
-                <div style={{ padding: '15px', background: '#f0fdf4', borderRadius: '8px', color: '#166534', marginBottom: '15px', fontSize: '0.85rem' }}>
-                  {importResult.message} ({importResult.createdCount} créés, {importResult.errors ? importResult.errors.length : 0} erreurs)
-                </div>
-              )}
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary-action" onClick={() => { setShowImportModal(false); setImportResult(null); }}>Fermer</button>
-                <button type="submit" className="btn-primary-action">Lancer l'importation</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Modal Assignation App à un Utilisateur ou Rôle */}
       {showAssignModal && (
