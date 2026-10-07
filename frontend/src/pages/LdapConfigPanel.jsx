@@ -25,6 +25,8 @@ const LdapConfigPanel = () => {
   const [activeTab, setActiveTab] = useState('config');
   const [testResult, setTestResult] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [groupSearchTerm, setGroupSearchTerm] = useState('');
   
   const [ldapUsersList, setLdapUsersList] = useState([]);
   const [ldapGroupsList, setLdapGroupsList] = useState([]);
@@ -291,8 +293,17 @@ const LdapConfigPanel = () => {
               <h4>Utilisateurs de l'annuaire ({ldapUsersList.length})</h4>
               <p style={{marginBottom: '20px', color: '#666'}}>Aperçu en temps réel des utilisateurs présents dans l'Active Directory.</p>
               
-              <div style={{display: 'flex', gap: '15px', marginBottom: '20px'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                 <button className="btn-add btn-refresh" onClick={() => setActiveTab('config')} style={{backgroundColor: '#17a2b8'}}><Activity size={16} style={{marginRight: '8px'}} /> Rafraîchir la connexion</button>
+                <div className="search-bar">
+                  <Search size={16} color="#666" />
+                  <input 
+                    type="text" 
+                    placeholder="Rechercher un utilisateur..." 
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
 
               {loadingLdapData ? (
@@ -304,7 +315,13 @@ const LdapConfigPanel = () => {
                   <table className="ldap-table">
                     <thead><tr><th>Identifiant</th><th>Nom Complet</th><th>Email</th></tr></thead>
                     <tbody>
-                      {ldapUsersList.map((u, i) => (
+                      {ldapUsersList
+                        .filter(u => 
+                          (u.identifier || '').toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+                          (u.name || '').toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+                          (u.first_name + ' ' + u.last_name).toLowerCase().includes(userSearchTerm.toLowerCase())
+                        )
+                        .map((u, i) => (
                         <tr key={i}>
                           <td>{u.identifier}</td>
                           <td>{u.name || (u.first_name + ' ' + u.last_name)}</td>
@@ -327,6 +344,18 @@ const LdapConfigPanel = () => {
               <h4>Groupes de l'annuaire ({ldapGroupsList.length})</h4>
               <p style={{marginBottom: '20px', color: '#666'}}>Aperçu en temps réel des groupes de sécurité depuis l'Active Directory.</p>
               
+              <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '20px'}}>
+                <div className="search-bar">
+                  <Search size={16} color="#666" />
+                  <input 
+                    type="text" 
+                    placeholder="Rechercher un groupe..." 
+                    value={groupSearchTerm}
+                    onChange={(e) => setGroupSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+
               {loadingLdapData ? (
                 <div style={{padding: '30px', textAlign: 'center', backgroundColor: '#f8f9fa', borderRadius: '4px', border: '1px dashed #ced4da'}}>
                   Chargement depuis l'Active Directory en cours...
@@ -336,7 +365,13 @@ const LdapConfigPanel = () => {
                   <table className="ldap-table">
                     <thead><tr><th>Identifiant / DN</th><th>Nom</th><th>Description</th></tr></thead>
                     <tbody>
-                      {ldapGroupsList.map((g, i) => (
+                      {ldapGroupsList
+                        .filter(g => 
+                          (g.identifier || '').toLowerCase().includes(groupSearchTerm.toLowerCase()) || 
+                          (g.name || '').toLowerCase().includes(groupSearchTerm.toLowerCase()) || 
+                          (g.description || '').toLowerCase().includes(groupSearchTerm.toLowerCase())
+                        )
+                        .map((g, i) => (
                         <tr key={i}>
                           <td>{g.identifier}</td>
                           <td>{g.name}</td>
