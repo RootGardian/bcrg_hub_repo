@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import hubLogo from '../assets/bcrg-hub-svg.svg';
 import './Login.css';
 
 const Login = () => {
@@ -47,7 +48,8 @@ const Login = () => {
       {/* Côté gauche (Branding) */}
       <div className="login-left">
         <div className="branding-content">
-          <div className="logo-container">
+          <div className="logo-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <img src={hubLogo} alt="BCRG HUB Logo" className="logo-icon" />
             <h1>BCRG Web Store</h1>
           </div>
         </div>
