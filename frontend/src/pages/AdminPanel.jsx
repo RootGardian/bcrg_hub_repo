@@ -113,6 +113,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
   const [assignRoleForm, setAssignRoleForm] = useState({ ldap_type: 'USER', ldap_identifier: '', role_id: '', ldap_name: '' });
   const [modalSearchTerm, setModalSearchTerm] = useState('');
+  const [isLdapDropdownOpen, setIsLdapDropdownOpen] = useState(false);
   
   const [ldapUsers, setLdapUsers] = useState([]);
   const [ldapGroups, setLdapGroups] = useState([]);
@@ -1091,39 +1092,72 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                 {loadingLdap ? (
                   <div style={{ padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>Chargement depuis l'Active Directory...</div>
                 ) : (
-                  <>
+                  <div style={{ position: 'relative' }}>
                     <input 
                       type="text" 
-                      placeholder={`Rechercher un ${assignRoleForm.ldap_type === 'USER' ? 'utilisateur' : 'groupe'}...`}
+                      placeholder={`Tapez un nom pour rechercher un ${assignRoleForm.ldap_type === 'USER' ? 'utilisateur' : 'groupe'}...`}
                       value={modalSearchTerm}
-                      onChange={(e) => setModalSearchTerm(e.target.value)}
-                      style={{ marginBottom: '10px', width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }}
+                      onChange={(e) => {
+                        setModalSearchTerm(e.target.value);
+                        setAssignRoleForm({ ...assignRoleForm, ldap_identifier: '', ldap_name: '' });
+                        setIsLdapDropdownOpen(true);
+                      }}
+                      onFocus={() => setIsLdapDropdownOpen(true)}
+                      onBlur={() => setTimeout(() => setIsLdapDropdownOpen(false), 200)}
+                      style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }}
                     />
-                    <select value={assignRoleForm.ldap_identifier} onChange={e => {
-                      const id = e.target.value;
-                      const name = e.target.options[e.target.selectedIndex].text;
-                      setAssignRoleForm({ ...assignRoleForm, ldap_identifier: id, ldap_name: name });
-                    }}>
-                      <option value="">Sélectionner...</option>
-                      {assignRoleForm.ldap_type === 'USER' && ldapUsers
-                        .filter(u => 
-                          (u.identifier || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) || 
-                          (u.name || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
-                          (u.first_name + ' ' + u.last_name).toLowerCase().includes(modalSearchTerm.toLowerCase())
-                        )
-                        .map(u => (
-                        <option key={u.identifier} value={u.identifier}>{u.name || u.first_name + ' ' + u.last_name} ({u.identifier})</option>
-                      ))}
-                      {assignRoleForm.ldap_type === 'GROUP' && ldapGroups
-                        .filter(g => 
-                          (g.identifier || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) || 
-                          (g.name || '').toLowerCase().includes(modalSearchTerm.toLowerCase())
-                        )
-                        .map(g => (
-                        <option key={g.identifier} value={g.identifier}>{g.name} {g.description ? `(${g.description})` : ''}</option>
-                      ))}
-                    </select>
-                  </>
+                    
+                    {isLdapDropdownOpen && (
+                      <div style={{ 
+                        position: 'absolute', top: '100%', left: 0, right: 0, 
+                        maxHeight: '200px', overflowY: 'auto', backgroundColor: 'white', 
+                        border: '1px solid #ddd', borderRadius: '4px', zIndex: 1000,
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                      }}>
+                        {assignRoleForm.ldap_type === 'USER' && ldapUsers
+                          .filter(u => 
+                            (u.identifier || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) || 
+                            (u.name || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
+                            ((u.first_name || '') + ' ' + (u.last_name || '')).toLowerCase().includes(modalSearchTerm.toLowerCase())
+                          )
+                          .map(u => (
+                            <div 
+                              key={u.identifier}
+                              style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
+                              onMouseDown={() => {
+                                setAssignRoleForm({ ...assignRoleForm, ldap_identifier: u.identifier, ldap_name: u.name || u.first_name + ' ' + u.last_name });
+                                setModalSearchTerm(`${u.name || u.first_name + ' ' + u.last_name} (${u.identifier})`);
+                                setIsLdapDropdownOpen(false);
+                              }}
+                              onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                            >
+                              {u.name || u.first_name + ' ' + u.last_name} <span style={{color: '#666', fontSize: '0.9em'}}>({u.identifier})</span>
+                            </div>
+                        ))}
+                        {assignRoleForm.ldap_type === 'GROUP' && ldapGroups
+                          .filter(g => 
+                            (g.identifier || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) || 
+                            (g.name || '').toLowerCase().includes(modalSearchTerm.toLowerCase())
+                          )
+                          .map(g => (
+                            <div 
+                              key={g.identifier}
+                              style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
+                              onMouseDown={() => {
+                                setAssignRoleForm({ ...assignRoleForm, ldap_identifier: g.identifier, ldap_name: g.name });
+                                setModalSearchTerm(g.name);
+                                setIsLdapDropdownOpen(false);
+                              }}
+                              onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                            >
+                              {g.name} {g.description ? <span style={{color: '#666', fontSize: '0.9em'}}>({g.description})</span> : ''}
+                            </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
