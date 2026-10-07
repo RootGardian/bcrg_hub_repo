@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import hubLogo from '../assets/bcrg-hub-svg.svg';
@@ -113,7 +113,11 @@ const Login = () => {
             </div>
 
             <button type="submit" className="btn-submit" disabled={isLoading}>
-              <LogIn size={18} /> {isLoading ? 'Connexion...' : 'Se Connecter'}
+              {isLoading ? (
+                <><Loader2 size={18} className="spinner" /> Connexion...</>
+              ) : (
+                <><LogIn size={18} /> Se Connecter</>
+              )}
             </button>
           </form>
         </div>
