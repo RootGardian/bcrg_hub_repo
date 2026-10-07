@@ -34,14 +34,13 @@ const loginUser = async (req, res) => {
     
     if (ldapResult.success) {
       isAuthenticated = true;
-      // Si l'utilisateur n'existe pas localement, on le crée
       if (!user) {
         const salt = await bcrypt.genSalt(10);
         const dummyPassword = await bcrypt.hash(password, salt); // Juste pour remplir la contrainte DB
         user = await User.create({
           first_name: ldapResult.user.givenName || identifier,
           last_name: ldapResult.user.sn || '',
-          email: ldapResult.user.mail || `${identifier}@domain.local`,
+          email: ldapResult.user.mail || ldapResult.user.userPrincipalName || `${identifier}@domain.local`,
           matricule: identifier,
           password_hash: dummyPassword,
           department: ldapResult.user.department || 'LDAP',
@@ -50,6 +49,16 @@ const loginUser = async (req, res) => {
         });
         // Recharge avec les rôles (vide par défaut)
         user = await User.findByPk(user.id, { include: Role });
+      } else {
+        // Mettre à jour l'email et les infos si nécessaire
+        const newEmail = ldapResult.user.mail || ldapResult.user.userPrincipalName;
+        if (newEmail && (user.email.includes('@domain.local') || user.email !== newEmail)) {
+          user.email = newEmail;
+        }
+        if (ldapResult.user.givenName) user.first_name = ldapResult.user.givenName;
+        if (ldapResult.user.sn) user.last_name = ldapResult.user.sn;
+        if (ldapResult.user.department) user.department = ldapResult.user.department;
+        await user.save();
       }
     } 
     // 3. Sinon, on vérifie localement
@@ -64,6 +73,9 @@ const loginUser = async (req, res) => {
         // Collecter les identifiants LDAP (nom d'utilisateur + les DN ou CN des groupes)
         const ldapUser = ldapResult.user;
         const identifiers = [identifier]; // sAMAccountName ou autre identifiant utilisé pour la connexion
+        if (ldapUser.sAMAccountName) identifiers.push(ldapUser.sAMAccountName);
+        if (ldapUser.userPrincipalName) identifiers.push(ldapUser.userPrincipalName);
+        if (ldapUser.mail) identifiers.push(ldapUser.mail);
         
         // Ajouter les groupes de l'utilisateur (memberOf peut être un string ou un tableau de strings)
         if (ldapUser.memberOf) {
