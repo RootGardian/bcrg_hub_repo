@@ -112,6 +112,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
 
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
   const [assignRoleForm, setAssignRoleForm] = useState({ ldap_type: 'USER', ldap_identifier: '', role_id: '', ldap_name: '' });
+  const [modalSearchTerm, setModalSearchTerm] = useState('');
   
   const [ldapUsers, setLdapUsers] = useState([]);
   const [ldapGroups, setLdapGroups] = useState([]);
@@ -1090,19 +1091,39 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                 {loadingLdap ? (
                   <div style={{ padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>Chargement depuis l'Active Directory...</div>
                 ) : (
-                  <select value={assignRoleForm.ldap_identifier} onChange={e => {
-                    const id = e.target.value;
-                    const name = e.target.options[e.target.selectedIndex].text;
-                    setAssignRoleForm({ ...assignRoleForm, ldap_identifier: id, ldap_name: name });
-                  }}>
-                    <option value="">Sélectionner...</option>
-                    {assignRoleForm.ldap_type === 'USER' && ldapUsers.map(u => (
-                      <option key={u.identifier} value={u.identifier}>{u.name || u.first_name + ' ' + u.last_name} ({u.identifier})</option>
-                    ))}
-                    {assignRoleForm.ldap_type === 'GROUP' && ldapGroups.map(g => (
-                      <option key={g.identifier} value={g.identifier}>{g.name} {g.description ? `(${g.description})` : ''}</option>
-                    ))}
-                  </select>
+                  <>
+                    <input 
+                      type="text" 
+                      placeholder={`Rechercher un ${assignRoleForm.ldap_type === 'USER' ? 'utilisateur' : 'groupe'}...`}
+                      value={modalSearchTerm}
+                      onChange={(e) => setModalSearchTerm(e.target.value)}
+                      style={{ marginBottom: '10px', width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }}
+                    />
+                    <select value={assignRoleForm.ldap_identifier} onChange={e => {
+                      const id = e.target.value;
+                      const name = e.target.options[e.target.selectedIndex].text;
+                      setAssignRoleForm({ ...assignRoleForm, ldap_identifier: id, ldap_name: name });
+                    }}>
+                      <option value="">Sélectionner...</option>
+                      {assignRoleForm.ldap_type === 'USER' && ldapUsers
+                        .filter(u => 
+                          (u.identifier || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) || 
+                          (u.name || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
+                          (u.first_name + ' ' + u.last_name).toLowerCase().includes(modalSearchTerm.toLowerCase())
+                        )
+                        .map(u => (
+                        <option key={u.identifier} value={u.identifier}>{u.name || u.first_name + ' ' + u.last_name} ({u.identifier})</option>
+                      ))}
+                      {assignRoleForm.ldap_type === 'GROUP' && ldapGroups
+                        .filter(g => 
+                          (g.identifier || '').toLowerCase().includes(modalSearchTerm.toLowerCase()) || 
+                          (g.name || '').toLowerCase().includes(modalSearchTerm.toLowerCase())
+                        )
+                        .map(g => (
+                        <option key={g.identifier} value={g.identifier}>{g.name} {g.description ? `(${g.description})` : ''}</option>
+                      ))}
+                    </select>
+                  </>
                 )}
               </div>
 
@@ -1123,7 +1144,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
               )}
 
               <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowAssignRoleModal(false)}>Annuler</button>
+                <button type="button" className="btn-secondary" onClick={() => { setShowAssignRoleModal(false); setModalSearchTerm(''); }}>Annuler</button>
                 <button type="submit" className="btn-primary-action">Confirmer l'ajout</button>
               </div>
             </form>
