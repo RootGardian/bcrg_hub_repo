@@ -33,7 +33,7 @@ const authenticateLdap = async (identifier, password) => {
     return { success: true, user: authenticatedUser };
   } catch (error) {
     console.error("LDAP Auth error:", error.message || error);
-    return { success: false, message: "Échec de l'authentification LDAP." };
+    return { success: false, message: error.message || "Échec de l'authentification LDAP." };
   }
 };
 

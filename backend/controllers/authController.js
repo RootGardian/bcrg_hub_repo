@@ -107,7 +107,11 @@ const loginUser = async (req, res) => {
         token: generateToken(user.id),
       });
     } else {
-      res.status(401).json({ message: 'Identifiant ou mot de passe invalide' });
+      let msg = 'Identifiant ou mot de passe invalide';
+      if (ldapResult && !ldapResult.success && ldapResult.message) {
+        msg = "Erreur LDAP : " + ldapResult.message;
+      }
+      res.status(401).json({ message: msg });
     }
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
