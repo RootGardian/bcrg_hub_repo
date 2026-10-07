@@ -19,7 +19,7 @@ const authenticateLdap = async (identifier, password) => {
       userPassword: password,
       userSearchBase: config.base_dn,
       username: identifier,
-      userSearchFilter: `(|(${config.identifier_field || 'sAMAccountName'}={{username}})(mail={{username}})(employeeID={{username}}))`
+      usernameFilter: `(|(${config.identifier_field || 'sAMAccountName'}={{username}})(mail={{username}})(employeeID={{username}}))`
     };
 
     if (config.use_bind && config.bind_dn && config.bind_password) {
