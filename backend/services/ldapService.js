@@ -12,6 +12,8 @@ const authenticateLdap = async (identifier, password) => {
     let options = {
       ldapOpts: {
         url: `ldap://${config.server}:${config.port}`,
+        connectTimeout: 15000,
+        timeout: 15000
       },
       userDn: `${identifier}@${config.name}`, // e.g. user@bcrg-guinee.org
       userPassword: password,
@@ -39,6 +41,8 @@ const testLdapConnection = async (config) => {
     let options = {
       ldapOpts: {
         url: `ldap://${config.server}:${config.port}`,
+        connectTimeout: 15000,
+        timeout: 15000
       }
     };
     if (config.use_bind && config.bind_dn && config.bind_password) {
@@ -67,7 +71,9 @@ const ldap = require('ldapjs');
 const createLdapClient = async (config) => {
   return new Promise((resolve, reject) => {
     const client = ldap.createClient({
-      url: `ldap://${config.server}:${config.port}`
+      url: `ldap://${config.server}:${config.port}`,
+      connectTimeout: 15000,
+      timeout: 15000
     });
 
     client.on('error', (err) => {
