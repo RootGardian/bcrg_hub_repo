@@ -94,6 +94,10 @@ const loginUser = async (req, res) => {
       const allRolesMap = new Map();
       [...localRoles, ...dynamicRoles].forEach(r => allRolesMap.set(r.id, r));
       const combinedRoles = Array.from(allRolesMap.values());
+      // Vérifier si un des rôles combinés est un rôle admin
+      const hasAdminRole = combinedRoles.some(r => r.name.toLowerCase().includes('admin'));
+      const finalIsAdmin = user.is_admin || hasAdminRole;
+
       res.json({
         id: user.id,
         first_name: user.first_name,
@@ -101,7 +105,7 @@ const loginUser = async (req, res) => {
         email: user.email,
         matricule: user.matricule,
         department: user.department,
-        is_admin: user.is_admin,
+        is_admin: finalIsAdmin,
         is_active: user.is_active,
         roles: combinedRoles,
         token: generateToken(user.id),
