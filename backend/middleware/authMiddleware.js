@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
-const { User, Role } = require('../models');
+const { User, Role, LdapRoleMapping } = require('../models');
+const { Op } = require('sequelize');
 
 const publicKeyPath = path.join(__dirname, '../public.pem');
 const publicKey = fs.existsSync(publicKeyPath) ? fs.readFileSync(publicKeyPath, 'utf8') : process.env.JWT_SECRET;
@@ -35,20 +36,36 @@ const protect = async (req, res, next) => {
   }
 };
 
-const admin = (req, res, next) => {
-  // Check if user is admin (DB flag or has 'admin' in role name)
-  let hasAdminRole = false;
-  if (req.user && req.user.Roles) {
-    hasAdminRole = req.user.Roles.some(r => r.name.toLowerCase().includes('admin'));
-  }
-  
-  // Note: For LDAP dynamic roles, we might need a more complex check, but for now
-  // we'll rely on the DB roles. If the user logs in and gets 'is_admin' true, the frontend
-  // will show the admin panel. If they are assigned an 'admin' role, this will let them pass.
-  if (req.user && (req.user.is_admin || hasAdminRole)) {
-    next();
-  } else {
-    res.status(403).json({ message: 'Non autorisé en tant qu\'administrateur' });
+const admin = async (req, res, next) => {
+  try {
+    // Check if user is admin (DB flag or has 'admin' in role name)
+    let hasAdminRole = false;
+    if (req.user && req.user.Roles) {
+      hasAdminRole = req.user.Roles.some(r => r.name.toLowerCase().includes('admin'));
+    }
+    
+    // Si pas admin localement, vérifier les rôles LDAP
+    if (req.user && !hasAdminRole && !req.user.is_admin) {
+      const identifiers = [req.user.matricule, req.user.email].filter(Boolean);
+      const mappings = await LdapRoleMapping.findAll({
+        where: {
+          ldap_identifier: {
+            [Op.in]: identifiers
+          }
+        },
+        include: Role
+      });
+      const dynamicRoles = mappings.map(m => m.Role).filter(r => r != null);
+      hasAdminRole = dynamicRoles.some(r => r.name.toLowerCase().includes('admin'));
+    }
+
+    if (req.user && (req.user.is_admin || hasAdminRole)) {
+      next();
+    } else {
+      res.status(403).json({ message: 'Non autorisé en tant qu\'administrateur' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur de vérification des droits', error: error.message });
   }
 };
 
