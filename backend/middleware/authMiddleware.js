@@ -46,7 +46,16 @@ const admin = async (req, res, next) => {
     
     // Si pas admin localement, vérifier les rôles LDAP
     if (req.user && !hasAdminRole && !req.user.is_admin) {
-      const identifiers = [req.user.matricule, req.user.email].filter(Boolean);
+      const baseEmail = req.user.email ? req.user.email.split('@')[0] : null;
+      const baseMatricule = req.user.matricule ? req.user.matricule.split('@')[0] : null;
+
+      const identifiers = [
+        req.user.matricule, 
+        req.user.email,
+        baseEmail,
+        baseMatricule
+      ].filter(Boolean);
+
       const mappings = await LdapRoleMapping.findAll({
         where: {
           ldap_identifier: {

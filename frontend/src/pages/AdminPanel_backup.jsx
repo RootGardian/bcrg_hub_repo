@@ -440,12 +440,6 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                       <button className="btn-primary-action" style={{ justifyContent: 'flex-start' }} onClick={() => { setNewApp({ name: '', url: '', description: '', status: 'Actif', icon_url: '' }); setEditingAppId(null); setShowAppModal(true); }}>
                         <Plus size={18} /> Ajouter une nouvelle application
                       </button>
-                      <button className="btn-secondary-action" style={{ justifyContent: 'flex-start' }} onClick={() => { fetchRoles(); setShowUserModal(true); }}>
-                        <Users size={18} /> Créer un compte employé
-                      </button>
-                      <button className="btn-secondary-action" style={{ justifyContent: 'flex-start' }} onClick={() => setShowImportModal(true)}>
-                        <Upload size={18} /> Importation de masse (CSV)
-                      </button>
                       <button className="btn-secondary-action" style={{ justifyContent: 'flex-start' }} onClick={() => { fetchApps(); fetchUsers(); fetchRoles(); setAssignResult(null); setShowAssignModal(true); }}>
                         <Key size={18} /> Assigner une application à un utilisateur / rôle
                       </button>
@@ -893,76 +887,6 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
         </div>
       )}
 
-      {/* Modal Ajout Utilisateur */}
-      {showUserModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>{editingUserId ? "Modifier l'Utilisateur" : "Nouveau Compte Employé"}</h3>
-            <form onSubmit={handleCreateUser}>
-              <div className="form-group">
-                <label>Prénom</label>
-                <input required value={newUser.first_name} onChange={e => setNewUser({ ...newUser, first_name: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Nom</label>
-                <input required value={newUser.last_name} onChange={e => setNewUser({ ...newUser, last_name: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Email Professionnel</label>
-                <input required type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} placeholder="ex: m.diallo@bcrg-guinee.org" />
-              </div>
-              <div className="form-group">
-                <label>Matricule BCRG</label>
-                <input required value={newUser.matricule} onChange={e => setNewUser({ ...newUser, matricule: e.target.value })} placeholder="ex: 2005" />
-              </div>
-              <div className="form-group">
-                <label>Département / Direction</label>
-                <input value={newUser.department} onChange={e => setNewUser({ ...newUser, department: e.target.value })} placeholder="ex: Informatique & Systèmes" />
-              </div>
-              <div className="form-group">
-                <label>Rôle initial</label>
-                <select value={newUser.role_id} onChange={e => setNewUser({ ...newUser, role_id: e.target.value })}>
-                  <option value="">Sélectionner un rôle...</option>
-                  {roles.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary-action" onClick={() => setShowUserModal(false)}>Annuler</button>
-                <button type="submit" className="btn-primary-action">{editingUserId ? 'Sauvegarder' : "Créer l'utilisateur"}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Importation CSV */}
-      {showImportModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>Importation en Masse (CSV / XLSX)</h3>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '20px' }}>
-              Format attendu: Matricule, Nom, Prénom, Email, Département, Rôle
-            </p>
-            <form onSubmit={handleImportCSV}>
-              <div className="form-group">
-                <label>Sélectionner le fichier .csv</label>
-                <input type="file" accept=".csv" onChange={e => setImportFile(e.target.files[0])} required />
-              </div>
-              {importResult && (
-                <div style={{ padding: '15px', background: '#f0fdf4', borderRadius: '8px', color: '#166534', marginBottom: '15px', fontSize: '0.85rem' }}>
-                  {importResult.message} ({importResult.createdCount} créés, {importResult.errors ? importResult.errors.length : 0} erreurs)
-                </div>
-              )}
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary-action" onClick={() => { setShowImportModal(false); setImportResult(null); }}>Fermer</button>
-                <button type="submit" className="btn-primary-action">Lancer l'importation</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Modal Assignation App à un Utilisateur ou Rôle */}
       {showAssignModal && (
