@@ -1,11 +1,20 @@
 const { LdapConfig } = require('../models');
 const { testLdapConnection, getLdapUsers, getLdapGroups } = require('../services/ldapService');
 
+// Helper to sanitize config and never return AD secrets in cleartext to the client
+const sanitizeConfig = (config) => {
+  if (!config) return null;
+  const data = typeof config.toJSON === 'function' ? config.toJSON() : { ...config };
+  data.has_bind_password = Boolean(data.bind_password);
+  data.bind_password = data.bind_password ? '********' : '';
+  return data;
+};
+
 // GET all LDAP configurations
 const getLdapConfigs = async (req, res) => {
   try {
     const configs = await LdapConfig.findAll();
-    res.json(configs);
+    res.json(configs.map(sanitizeConfig));
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
@@ -16,7 +25,7 @@ const getLdapConfigById = async (req, res) => {
   try {
     const config = await LdapConfig.findByPk(req.params.id);
     if (!config) return res.status(404).json({ message: 'Configuration non trouvée' });
-    res.json(config);
+    res.json(sanitizeConfig(config));
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
@@ -26,7 +35,7 @@ const getLdapConfigById = async (req, res) => {
 const createLdapConfig = async (req, res) => {
   try {
     const config = await LdapConfig.create(req.body);
-    res.status(201).json(config);
+    res.status(201).json(sanitizeConfig(config));
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
@@ -38,8 +47,14 @@ const updateLdapConfig = async (req, res) => {
     const config = await LdapConfig.findByPk(req.params.id);
     if (!config) return res.status(404).json({ message: 'Configuration non trouvée' });
 
-    await config.update(req.body);
-    res.json(config);
+    const updateData = { ...req.body };
+    // If the password was not modified (placeholder sent), retain the existing encrypted password
+    if (updateData.bind_password === '********' || updateData.bind_password === '' || updateData.bind_password === undefined) {
+      delete updateData.bind_password;
+    }
+
+    await config.update(updateData);
+    res.json(sanitizeConfig(config));
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
@@ -61,8 +76,16 @@ const deleteLdapConfig = async (req, res) => {
 // TEST LDAP config
 const testLdap = async (req, res) => {
   try {
-    // on teste la configuration envoyée depuis le frontend, même si elle n'est pas encore sauvée
-    const result = await testLdapConnection(req.body);
+    const testData = { ...req.body };
+    // If the frontend sent masked password, retrieve the stored decrypted password
+    if (testData.bind_password === '********' || !testData.bind_password) {
+      if (testData.id) {
+        const stored = await LdapConfig.findByPk(testData.id);
+        if (stored) testData.bind_password = stored.bind_password;
+      }
+    }
+
+    const result = await testLdapConnection(testData);
     if (result.success) {
       res.json({ success: true, message: "Connexion réussie avec l'Active Directory." });
     } else {
@@ -93,6 +116,17 @@ const searchGroups = async (req, res) => {
   }
 };
 
+// GET AD OUs & Containers
+const searchOUs = async (req, res) => {
+  try {
+    const { getLdapOUs } = require('../services/ldapService');
+    const ous = await getLdapOUs();
+    res.json(ous);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getLdapConfigs,
   getLdapConfigById,
@@ -101,5 +135,6 @@ module.exports = {
   deleteLdapConfig,
   testLdap,
   searchUsers,
-  searchGroups
+  searchGroups,
+  searchOUs
 };

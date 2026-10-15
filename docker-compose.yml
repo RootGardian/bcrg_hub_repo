@@ -1,0 +1,91 @@
+services:
+  # ==========================================
+  # 🗄️ 1. Base de Données PostgreSQL
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: bcrg-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-bcrg_hub}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-BcrgSecureDb2026!}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bcrg-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-bcrg_hub}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ==========================================
+  # ⚙️ 2. API Backend (Node.js / Express)
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bcrg-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-bcrg_hub}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-BcrgSecureDb2026!}
+      DB_SSL: "false"
+      JWT_SECRET: ${JWT_SECRET:-supersecret_bcrg_hub_production_jwt_key_2026}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-bcrg_32_bytes_super_secret_encryption_key_2026}
+      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-admin@bcrg-guinee.org}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-Bcrg@Admin2026!}
+      DEFAULT_ADMIN_MATRICULE: ${DEFAULT_ADMIN_MATRICULE:-ADMIN001}
+      USE_HTTPS: ${USE_HTTPS:-false}
+      ENABLE_CLUSTER: ${ENABLE_CLUSTER:-true}
+    networks:
+      - bcrg-net
+    ports:
+      - "5001:5001"
+    expose:
+      - "5001"
+
+  # ==========================================
+  # 🌐 3. Frontend & Reverse Proxy (Nginx)
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: bcrg-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${PORT:-80}:80"
+    networks:
+      - bcrg-net
+
+# ==========================================
+# 💾 Volumes persistants
+# ==========================================
+volumes:
+  postgres_data:
+    name: bcrg_postgres_data
+
+# ==========================================
+# 🔌 Réseau interne isolé
+# ==========================================
+networks:
+  bcrg-net:
+    name: bcrg_network
+    driver: bridge

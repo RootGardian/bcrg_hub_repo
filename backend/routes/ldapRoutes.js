@@ -8,11 +8,17 @@ const {
   deleteLdapConfig,
   testLdap,
   searchUsers,
-  searchGroups
+  searchGroups,
+  searchOUs
 } = require('../controllers/ldapController');
+const { protect, admin } = require('../middleware/authMiddleware');
+
+// Toutes les routes LDAP sont restreintes aux administrateurs authentifiés
+router.use(protect, admin);
 
 router.get('/users', searchUsers);
 router.get('/groups', searchGroups);
+router.get('/ous', searchOUs);
 router.post('/test', testLdap);
 router.get('/', getLdapConfigs);
 router.get('/:id', getLdapConfigById);

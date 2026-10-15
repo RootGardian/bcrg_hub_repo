@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
+const { encrypt, decrypt } = require('../utils/cryptoUtils');
 
 const LdapConfig = sequelize.define('LdapConfig', {
   id: {
@@ -17,7 +18,20 @@ const LdapConfig = sequelize.define('LdapConfig', {
   base_dn: { type: DataTypes.STRING },
   use_bind: { type: DataTypes.BOOLEAN, defaultValue: false },
   bind_dn: { type: DataTypes.STRING },
-  bind_password: { type: DataTypes.STRING },
+  bind_password: {
+    type: DataTypes.TEXT,
+    set(value) {
+      if (value && typeof value === 'string' && value.trim() !== '') {
+        this.setDataValue('bind_password', encrypt(value));
+      } else if (value === null || value === '') {
+        this.setDataValue('bind_password', null);
+      }
+    },
+    get() {
+      const rawValue = this.getDataValue('bind_password');
+      return decrypt(rawValue);
+    }
+  },
   identifier_field: { type: DataTypes.STRING },
   sync_field: { type: DataTypes.STRING }
 }, {

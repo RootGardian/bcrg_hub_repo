@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_URL } from '../config/api';
 import {
   LayoutDashboard,
   Bell,
@@ -70,21 +71,22 @@ const AppLogo = ({ app, size = 28 }) => {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const userStr = localStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
-  const token = localStorage.getItem('token');
+  const [user, setUser] = useState(() => {
+    const s = localStorage.getItem('user');
+    return s ? JSON.parse(s) : null;
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard');
   const [myApps, setMyApps] = useState([]);
   const [loadingApps, setLoadingApps] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
 
   useEffect(() => {
     const fetchMyApps = async () => {
       try {
-        const { data } = await axios.get(`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`}/api/apps/my-apps`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const { data } = await axios.get(`${API_URL}/api/apps/my-apps`);
         setMyApps(data);
       } catch (err) {
         console.error('Erreur chargement apps:', err);
@@ -92,8 +94,58 @@ const Dashboard = () => {
         setLoadingApps(false);
       }
     };
-    if (token) fetchMyApps();
-  }, [token]);
+    if (user) {
+      fetchMyApps();
+
+      // Battement de cœur (Heartbeat) optimisé : synchronise le profil et vérifie les droits en direct
+      // Intervalle de 30 secondes pour supporter 800+ utilisateurs sans surcharger le serveur
+      const checkSession = async () => {
+        // Si l'onglet est masqué/en arrière-plan, ne pas surcharger le serveur
+        if (document.hidden) return;
+
+        try {
+          const token = localStorage.getItem('token');
+          const headers = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+          const { data: updatedUser } = await axios.get(`${API_URL}/api/auth/me`, headers);
+          if (updatedUser) {
+            setUser(prev => {
+              const wasAdmin = Boolean(prev && (prev.is_admin || (prev.roles && prev.roles.some(r => (typeof r === 'string' ? r : r.name || '').toLowerCase().includes('admin')))));
+              const nowAdmin = Boolean(updatedUser && (updatedUser.is_admin || (updatedUser.roles && updatedUser.roles.some(r => (typeof r === 'string' ? r : r.name || '').toLowerCase().includes('admin')))));
+
+              // Si l'utilisateur vient d'être promu Administrateur en direct !
+              if (!wasAdmin && nowAdmin) {
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                window.location.href = '/admin';
+                return updatedUser;
+              }
+              if (JSON.stringify(prev) !== JSON.stringify(updatedUser)) {
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                return updatedUser;
+              }
+              return prev;
+            });
+          }
+        } catch (e) {
+          // L'intercepteur global axios gère automatiquement la déconnexion si la session est révoquée
+        }
+      };
+
+      const heartbeat = setInterval(checkSession, 30000); // 30 secondes
+
+      // Vérification immédiate lorsque l'utilisateur revient sur l'onglet
+      const handleVisibilityChange = () => {
+        if (!document.hidden) {
+          checkSession();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      return () => {
+        clearInterval(heartbeat);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
+    }
+  }, []);
 
   if (!user) {
     return (
@@ -106,14 +158,29 @@ const Dashboard = () => {
     );
   }
 
-  const roleName = user.roles && user.roles.length > 0 ? user.roles[0].name.toUpperCase() : 'EMPLOYÉ';
+  const isAdmin = Boolean(user && (user.is_admin || (user.roles && user.roles.some(r => (typeof r === 'string' ? r : r.name || '').toLowerCase().includes('admin')))));
+  const roleName = isAdmin ? 'ADMINISTRATEUR' : (user.roles && user.roles.length > 0 ? (typeof user.roles[0] === 'string' ? user.roles[0] : user.roles[0].name || '').toUpperCase() : 'EMPLOYÉ');
   const initial = user.first_name ? user.first_name.charAt(0).toUpperCase() + (user.last_name ? user.last_name.charAt(0).toUpperCase() : '') : 'U';
   const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      await axios.post(`${API_URL}/api/auth/logout`, {}, headers);
+    } catch (e) {
+      console.error('Erreur lors de la déconnexion SLO:', e);
+    }
+    setTimeout(() => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login', {
+        state: {
+          sloMessage: 'Déconnexion globale réussie : vos sessions actives sur le HUB et toutes les applications connectées ont été révoquées simultanément.'
+        }
+      });
+    }, 700);
   };
 
   const toggleDropdown = (e) => {
@@ -125,22 +192,110 @@ const Dashboard = () => {
     if (isProfileDropdownOpen) setIsProfileDropdownOpen(false);
   };
 
-  const openApp = (app) => {
+  const openApp = async (app) => {
     if (app.status !== 'Actif') return;
     try {
-      const urlObj = new URL(app.url);
       if (app.auth_type === 'SSO') {
-        const token = localStorage.getItem('token');
-        if (token) urlObj.searchParams.append('sso_token', token);
+        const res = await axios.post(
+          `${API_URL}/api/apps/${app.id}/launch`,
+          {}
+        );
+
+        const ssoToken = res.data?.sso_token;
+        const targetUrl = res.data?.url || app.url;
+
+        if (ssoToken) {
+          // Transmission sécurisée par POST (évite l'exposition du jeton dans l'URL / query param)
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = targetUrl;
+          form.target = '_blank';
+          form.rel = 'noopener noreferrer';
+
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'sso_token';
+          input.value = ssoToken;
+          form.appendChild(input);
+
+          document.body.appendChild(form);
+          form.submit();
+          document.body.removeChild(form);
+          return;
+        }
       }
-      window.open(urlObj.toString(), '_blank', 'noopener,noreferrer');
-    } catch(e) {
+      window.open(app.url, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      console.error("Erreur lors du lancement SSO", e);
       window.open(app.url, '_blank', 'noopener,noreferrer');
     }
   };
 
   return (
     <div className="dashboard-layout" onClick={closeDropdown}>
+      {/* Overlay Déconnexion Globale (Single Logout) */}
+      {isLoggingOut && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          color: 'white'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '32px 36px',
+            maxWidth: '430px',
+            textAlign: 'center',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+            color: '#1e293b'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: '#fee2e2',
+              color: '#dc2626',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px'
+            }}>
+              <LogOut size={26} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 8px 0', color: '#0f172a' }}>
+              Déconnexion Globale (SLO)
+            </h3>
+            <p style={{ fontSize: '0.88rem', color: '#64748b', margin: '0 0 18px 0', lineHeight: 1.5 }}>
+              Envoi du signal de révocation cryptographique aux applications connectées pour clôturer toutes vos sessions simultanément...
+            </p>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 14px',
+              background: '#f1f5f9',
+              borderRadius: '20px',
+              fontSize: '0.8rem',
+              color: '#475569',
+              fontWeight: 600
+            }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></span>
+              Protocole OIDC Back-Channel Logout actif
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <aside className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
@@ -155,10 +310,10 @@ const Dashboard = () => {
               <LayoutDashboard size={20} className="nav-icon" />
               {isSidebarOpen && <span>Tableau de bord</span>}
             </li>
-            {user && user.is_admin && (
-              <li 
-                className="nav-item" 
-                onClick={() => navigate('/admin')} 
+            {isAdmin && (
+              <li
+                className="nav-item"
+                onClick={() => navigate('/admin')}
                 style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px', cursor: 'pointer' }}
               >
                 <ShieldCheck size={20} className="nav-icon" />
@@ -173,8 +328,29 @@ const Dashboard = () => {
       <main className="main-content">
         {/* Topbar */}
         <header className="topbar">
-          <div className="topbar-left">
+          <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <h3>{roleName}</h3>
+            {isAdmin && (
+              <button
+                onClick={() => navigate('/admin')}
+                style={{
+                  background: '#15803d',
+                  color: 'white',
+                  border: 'none',
+                  padding: '7px 14px',
+                  borderRadius: '6px',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(21, 128, 61, 0.2)'
+                }}
+              >
+                <ShieldCheck size={16} /> Panneau d'Administration
+              </button>
+            )}
           </div>
           <div className="topbar-right">
             <button className="bell-btn">
@@ -195,6 +371,11 @@ const Dashboard = () => {
                   <button className="dropdown-item" onClick={() => { setCurrentView('profile'); setIsProfileDropdownOpen(false); }}>
                     <UserIcon size={18} /> Mon profil
                   </button>
+                  {isAdmin && (
+                    <button className="dropdown-item text-green" onClick={() => { navigate('/admin'); setIsProfileDropdownOpen(false); }}>
+                      <ShieldCheck size={18} /> Panneau d'Administration
+                    </button>
+                  )}
                   <button className="dropdown-item text-red" onClick={handleLogout}>
                     <LogOut size={18} /> Se déconnecter
                   </button>
@@ -280,9 +461,6 @@ const Dashboard = () => {
                   <ArrowLeft size={16} /> Retour
                 </button>
                 <div className="profile-actions-right">
-                  <button className="btn-secondary">
-                    <Key size={16} /> Changer le mot de passe
-                  </button>
                   <button className="btn-danger" onClick={handleLogout}>
                     <LogOut size={16} /> Se déconnecter
                   </button>

@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
+const { encrypt, decrypt } = require('../utils/cryptoUtils');
 
 const User = sequelize.define('User', {
   id: {
@@ -41,6 +42,29 @@ const User = sequelize.define('User', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
     allowNull: false
+  },
+  mfa_enabled: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  mfa_secret: {
+    type: DataTypes.TEXT,
+    set(value) {
+      if (value && typeof value === 'string' && value.trim() !== '') {
+        this.setDataValue('mfa_secret', encrypt(value));
+      } else {
+        this.setDataValue('mfa_secret', null);
+      }
+    },
+    get() {
+      const raw = this.getDataValue('mfa_secret');
+      return decrypt(raw);
+    }
+  },
+  ldap_groups: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: []
   },
   created_at: {
     type: DataTypes.DATE,

@@ -29,6 +29,10 @@ const Application = sequelize.define('Application', {
   icon_url: {
     type: DataTypes.STRING(500)
   },
+  slo_url: {
+    type: DataTypes.STRING(500),
+    allowNull: true
+  },
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

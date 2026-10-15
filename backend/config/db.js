@@ -1,19 +1,44 @@
 require('dotenv').config();
 const { Sequelize } = require('sequelize');
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'Store',
-  process.env.DB_USER || 'postgres',
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST || 'localhost',
-    dialect: 'postgres',
-    logging: false,
-    dialectOptions: {
+const useSsl = process.env.DB_SSL === 'true' || (
+  process.env.DB_SSL !== 'false' &&
+  process.env.DB_HOST &&
+  !['localhost', '127.0.0.1', 'db', 'postgres'].includes(process.env.DB_HOST)
+);
+
+const dialectOptions = useSsl
+  ? {
       ssl: {
         require: true,
         rejectUnauthorized: false // Required for some remote DBs like Render
       }
+    }
+  : {};
+
+const maxPool = process.env.DB_POOL_MAX
+  ? parseInt(process.env.DB_POOL_MAX, 10)
+  : (process.env.DB_HOST && process.env.DB_HOST.includes('render.com') ? 15 : 40);
+
+const minPool = process.env.DB_POOL_MIN
+  ? parseInt(process.env.DB_POOL_MIN, 10)
+  : (process.env.DB_HOST && process.env.DB_HOST.includes('render.com') ? 2 : 5);
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME || 'bcrg_hub',
+  process.env.DB_USER || 'postgres',
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    dialect: 'postgres',
+    logging: false,
+    dialectOptions,
+    pool: {
+      max: maxPool, // Jusqu'à 40-50 connexions simultanées en production pour 800+ utilisateurs
+      min: minPool, // Maintient des connexions chaudes prêtes à l'emploi
+      acquire: 30000,
+      idle: 60000
     },
     define: {
       timestamps: false // Les tables fournies n'ont que created_at, pas de updated_at
