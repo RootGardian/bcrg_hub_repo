@@ -87,46 +87,74 @@ const issueSessionTokens = async (user, req, res) => {
   return { accessToken, refreshToken: rawRefreshToken };
 };
 
+// Helper to convert any LDAP attribute (Buffer, Array, String) to a clean string
+const toCleanString = (val) => {
+  if (val === null || val === undefined) return '';
+  if (Array.isArray(val)) {
+    return val.length > 0 ? toCleanString(val[0]) : '';
+  }
+  if (Buffer.isBuffer(val)) {
+    return val.toString('utf8').trim();
+  }
+  return String(val).trim();
+};
+
 // Helper: Calculate roles and admin status
 const resolveUserRolesAndAdmin = async (user, identifier, ldapResult = null) => {
   let dynamicRoles = [];
   const identifiers = [];
 
-  if (identifier) identifiers.push(identifier);
-  if (user.matricule) identifiers.push(user.matricule);
-  if (user.email) identifiers.push(user.email);
-  if (user.email && user.email.includes('@')) identifiers.push(user.email.split('@')[0]);
-  if (user.matricule && user.matricule.includes('@')) identifiers.push(user.matricule.split('@')[0]);
+  const addIdentifier = (val) => {
+    if (val === null || val === undefined) return;
+    if (Array.isArray(val)) {
+      val.forEach(v => addIdentifier(v));
+      return;
+    }
+    const str = Buffer.isBuffer(val) ? val.toString('utf8').trim() : String(val).trim();
+    if (str) {
+      identifiers.push(str);
+      if (str.includes('@')) {
+        identifiers.push(str.split('@')[0]);
+      }
+    }
+  };
 
-  if (ldapResult && ldapResult.success && ldapResult.user) {
-    const ldapUser = ldapResult.user;
-    if (ldapUser.sAMAccountName) identifiers.push(ldapUser.sAMAccountName);
-    if (ldapUser.userPrincipalName) identifiers.push(ldapUser.userPrincipalName);
-    if (ldapUser.mail) identifiers.push(ldapUser.mail);
-    
-    if (ldapUser.memberOf) {
-      const groups = Array.isArray(ldapUser.memberOf) ? ldapUser.memberOf : [ldapUser.memberOf];
-      groups.forEach(g => {
-        if (typeof g === 'string') {
-          identifiers.push(g.trim());
-          const cnMatch = g.match(/CN=([^,]+)/i);
-          if (cnMatch) identifiers.push(cnMatch[1].trim());
-        }
-      });
+  const addGroup = (g) => {
+    if (g === null || g === undefined) return;
+    if (Array.isArray(g)) {
+      g.forEach(item => addGroup(item));
+      return;
+    }
+    const str = Buffer.isBuffer(g) ? g.toString('utf8').trim() : String(g).trim();
+    if (str) {
+      identifiers.push(str);
+      const cnMatch = str.match(/CN=([^,]+)/i);
+      if (cnMatch && cnMatch[1]) identifiers.push(cnMatch[1].trim());
+    }
+  };
+
+  addIdentifier(identifier);
+  if (user) {
+    addIdentifier(user.matricule);
+    addIdentifier(user.email);
+    if (Array.isArray(user.ldap_groups)) {
+      user.ldap_groups.forEach(g => addGroup(g));
     }
   }
 
-  if (Array.isArray(user.ldap_groups)) {
-    user.ldap_groups.forEach(g => {
-      if (typeof g === 'string') {
-        identifiers.push(g.trim());
-        const cnMatch = g.match(/CN=([^,]+)/i);
-        if (cnMatch) identifiers.push(cnMatch[1].trim());
-      }
-    });
+  if (ldapResult && ldapResult.success && ldapResult.user) {
+    const ldapUser = ldapResult.user;
+    addIdentifier(ldapUser.sAMAccountName || ldapUser.samaccountname);
+    addIdentifier(ldapUser.userPrincipalName || ldapUser.userprincipalname);
+    addIdentifier(ldapUser.mail);
+    
+    if (ldapUser.memberOf) {
+      const groups = Array.isArray(ldapUser.memberOf) ? ldapUser.memberOf : [ldapUser.memberOf];
+      groups.forEach(g => addGroup(g));
+    }
   }
 
-  const uniqueIdentifiers = Array.from(new Set(identifiers.filter(Boolean)));
+  const uniqueIdentifiers = Array.from(new Set(identifiers.filter(i => typeof i === 'string' && i.length > 0)));
 
   if (uniqueIdentifiers.length > 0) {
     const lowerIdentifiers = uniqueIdentifiers.map(i => i.toLowerCase());
@@ -145,12 +173,14 @@ const resolveUserRolesAndAdmin = async (user, identifier, ldapResult = null) => 
     dynamicRoles = mappings.map(m => m.Role).filter(r => r != null);
   }
 
-  const localRoles = user.Roles || [];
+  const localRoles = (user && user.Roles) || [];
   const allRolesMap = new Map();
-  [...localRoles, ...dynamicRoles].forEach(r => allRolesMap.set(r.id, r));
+  [...localRoles, ...dynamicRoles].forEach(r => {
+    if (r && r.id) allRolesMap.set(r.id, r);
+  });
   const combinedRoles = Array.from(allRolesMap.values());
-  const hasAdminRole = combinedRoles.some(r => r.name.toLowerCase().includes('admin'));
-  const finalIsAdmin = user.is_admin || hasAdminRole;
+  const hasAdminRole = combinedRoles.some(r => r && r.name && r.name.toLowerCase().includes('admin'));
+  const finalIsAdmin = (user && user.is_admin) || hasAdminRole;
 
   return { combinedRoles, finalIsAdmin };
 };
@@ -190,31 +220,37 @@ const loginUser = async (req, res) => {
 
     if (ldapResult && ldapResult.success) {
       isAuthenticated = true;
-      const sAMAccountName = ldapResult.user.sAMAccountName;
-      const mail = ldapResult.user.mail || ldapResult.user.userPrincipalName;
+      const sAMAccountName = toCleanString(ldapResult.user.sAMAccountName || ldapResult.user.samaccountname);
+      const rawMail = toCleanString(ldapResult.user.mail || ldapResult.user.userPrincipalName || ldapResult.user.userprincipalname);
+      const givenName = toCleanString(ldapResult.user.givenName || ldapResult.user.givenname);
+      const sn = toCleanString(ldapResult.user.sn);
+      const department = toCleanString(ldapResult.user.department) || 'LDAP';
+
+      const userIdentifier = sAMAccountName || identifier;
+      const mail = rawMail || (identifier.includes('@') ? identifier : `${identifier}@domain.local`);
       
       // Extraire tous les groupes AD (DN complet et CN court)
       let memberOfGroups = [];
       if (ldapResult.user.memberOf) {
         const rawGroups = Array.isArray(ldapResult.user.memberOf) ? ldapResult.user.memberOf : [ldapResult.user.memberOf];
         rawGroups.forEach(g => {
-          if (typeof g === 'string') {
-            memberOfGroups.push(g.trim());
-            const cnMatch = g.match(/CN=([^,]+)/i);
-            if (cnMatch) memberOfGroups.push(cnMatch[1].trim());
+          const str = Buffer.isBuffer(g) ? g.toString('utf8').trim() : (typeof g === 'string' ? g.trim() : String(g).trim());
+          if (str) {
+            memberOfGroups.push(str);
+            const cnMatch = str.match(/CN=([^,]+)/i);
+            if (cnMatch && cnMatch[1]) memberOfGroups.push(cnMatch[1].trim());
           }
         });
       }
       const cleanGroups = Array.from(new Set(memberOfGroups.filter(Boolean)));
 
-      // Chercher l'utilisateur avec son sAMAccountName ou mail
+      // Chercher l'utilisateur avec son sAMAccountName ou mail (insensible à la casse via Op.iLike)
+      const searchTerms = Array.from(new Set([userIdentifier, mail, identifier, sAMAccountName].filter(Boolean)));
       user = await User.findOne({
         where: {
           [Op.or]: [
-            { matricule: sAMAccountName || identifier },
-            { email: mail || identifier },
-            { matricule: identifier },
-            { email: identifier }
+            ...searchTerms.map(t => ({ matricule: { [Op.iLike]: t } })),
+            ...searchTerms.map(t => ({ email: { [Op.iLike]: t } }))
           ]
         },
         include: Role
@@ -222,27 +258,29 @@ const loginUser = async (req, res) => {
 
       if (!user) {
         const salt = await bcrypt.genSalt(10);
-        const dummyPassword = await bcrypt.hash(password, salt); 
+        const dummyPassword = await bcrypt.hash(password || 'bcrg_ldap_default_pw', salt); 
         user = await User.create({
-          first_name: ldapResult.user.givenName || identifier,
-          last_name: ldapResult.user.sn || '',
-          email: mail || `${identifier}@domain.local`,
-          matricule: sAMAccountName || identifier,
+          first_name: givenName || identifier,
+          last_name: sn || ' ',
+          email: mail,
+          matricule: userIdentifier,
           password_hash: dummyPassword,
-          department: ldapResult.user.department || 'LDAP',
+          department: department,
           ldap_groups: cleanGroups,
           is_admin: false,
           is_active: true
         });
         user = await User.findByPk(user.id, { include: Role });
       } else {
-        if (mail && user.email !== mail && user.email.includes('@domain.local')) user.email = mail;
-        if (ldapResult.user.givenName) user.first_name = ldapResult.user.givenName;
-        if (ldapResult.user.sn) user.last_name = ldapResult.user.sn;
-        if (ldapResult.user.department) user.department = ldapResult.user.department;
+        if (mail && user.email !== mail && user.email.includes('@domain.local')) {
+          user.email = mail;
+        }
+        if (givenName) user.first_name = givenName;
+        if (sn) user.last_name = sn;
+        if (department) user.department = department;
         if (cleanGroups.length > 0) user.ldap_groups = cleanGroups;
-        if (sAMAccountName && user.matricule !== sAMAccountName) {
-           const existing = await User.findOne({ where: { matricule: sAMAccountName } });
+        if (sAMAccountName && user.matricule.toLowerCase() !== sAMAccountName.toLowerCase()) {
+           const existing = await User.findOne({ where: { matricule: { [Op.iLike]: sAMAccountName } } });
            if (!existing || existing.id === user.id) {
              user.matricule = sAMAccountName;
            }
@@ -338,6 +376,7 @@ const loginUser = async (req, res) => {
       res.status(401).json({ message: msg });
     }
   } catch (error) {
+    console.error('❌ Erreur loginUser détaillée:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };

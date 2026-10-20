@@ -1493,12 +1493,12 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
               <div className="form-group">
                 <label>Mode de connexion</label>
                 <select value={newApp.auth_type} onChange={e => setNewApp({ ...newApp, auth_type: e.target.value })}>
-                  <option value="SSO">SSO Sécurisé (Jeton JWT éphémère transmis par POST)</option>
+                  <option value="SSO">SSO Sécurisé (Jeton JWT éphémère)</option>
                   <option value="NONE">Redirection simple (Sans jeton)</option>
                 </select>
                 <small style={{ color: '#64748b', fontSize: '0.8rem', display: 'block', marginTop: '4px' }}>
                   {newApp.auth_type === 'SSO'
-                    ? "Le HUB transmettra un jeton SSO temporaire via requête POST sécurisée (sans exposition dans l'URL)."
+                    ? "Le HUB transmettra un jeton SSO temporaire sécurisé à l'application cible."
                     : "Le HUB ouvrira l'application telle quelle, l'utilisateur devra se connecter."}
                 </small>
               </div>

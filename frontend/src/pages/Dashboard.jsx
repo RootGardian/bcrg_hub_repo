@@ -205,22 +205,14 @@ const Dashboard = () => {
         const targetUrl = res.data?.url || app.url;
 
         if (ssoToken) {
-          // Transmission sécurisée par POST (évite l'exposition du jeton dans l'URL / query param)
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = targetUrl;
-          form.target = '_blank';
-          form.rel = 'noopener noreferrer';
-
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = 'sso_token';
-          input.value = ssoToken;
-          form.appendChild(input);
-
-          document.body.appendChild(form);
-          form.submit();
-          document.body.removeChild(form);
+          try {
+            const parsedUrl = new URL(targetUrl);
+            parsedUrl.searchParams.set('sso_token', ssoToken);
+            window.open(parsedUrl.toString(), '_blank', 'noopener,noreferrer');
+          } catch {
+            const separator = targetUrl.includes('?') ? '&' : '?';
+            window.open(`${targetUrl}${separator}sso_token=${encodeURIComponent(ssoToken)}`, '_blank', 'noopener,noreferrer');
+          }
           return;
         }
       }

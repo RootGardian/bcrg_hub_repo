@@ -159,8 +159,8 @@ const launchApp = async (req, res) => {
 
     const key = getPrivateKey();
     const ssoToken = hasAsymmetricKeys()
-      ? jwt.sign(ssoPayload, key, { algorithm: 'RS256', expiresIn: '60s' })
-      : jwt.sign(ssoPayload, key, { expiresIn: '60s' });
+      ? jwt.sign(ssoPayload, key, { algorithm: 'RS256', expiresIn: '5m' })
+      : jwt.sign(ssoPayload, key, { expiresIn: '5m' });
 
     // Enregistrement de la session active de l'application pour le Single Logout (SLO)
     try {
