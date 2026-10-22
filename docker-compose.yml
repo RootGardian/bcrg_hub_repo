@@ -57,6 +57,8 @@ services:
       ENABLE_CLUSTER: ${ENABLE_CLUSTER:-true}
     networks:
       - bcrg-net
+    ports:
+      - "5001:5001"
     expose:
       - "5001"
     logging:
@@ -79,7 +81,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "${PORT:-80}:80"
+      - "${PORT:-3001}:80"
     networks:
       - bcrg-net
     logging:

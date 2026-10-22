@@ -34,5 +34,5 @@ docker compose ps
 echo ""
 echo "==================================================================="
 echo "✅ DÉPLOIEMENT RÉUSSI AVEC SUCCÈS !"
-echo "👉 Accès au BCRG HUB : http://localhost:${PORT:-80}"
+echo "👉 Accès au BCRG HUB : http://localhost:${PORT:-3001}"
 echo "==================================================================="

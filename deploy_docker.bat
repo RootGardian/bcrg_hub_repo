@@ -31,7 +31,7 @@ docker compose ps
 echo.
 echo ===================================================================
 echo [SUCCÈS] Déploiement terminé avec succès !
-echo 👉 Ouvrez votre navigateur sur : http://localhost
+echo 👉 Ouvrez votre navigateur sur : http://localhost:3001
 echo ===================================================================
 echo.
 pause
