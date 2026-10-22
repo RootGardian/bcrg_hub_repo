@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import MaintenancePage from './pages/MaintenancePage';
 import './index.css';
 import axios from 'axios';
 import { API_URL } from './config/api';
@@ -156,6 +157,7 @@ function App() {
           </ProtectedRoute>
         } />
         
+        <Route path="/maintenance" element={<MaintenancePage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

@@ -32,9 +32,21 @@ const Login = () => {
 
   // Détection du message de déconnexion globale ou révocation avec disparition après 10s
   useEffect(() => {
-    const isRevoked = new URLSearchParams(location.search).get('revoked') === 'true';
+    const searchParams = new URLSearchParams(location.search);
+    const isRevoked = searchParams.get('revoked') === 'true';
+    const isSlo = searchParams.get('slo') === 'true';
+
     if (isRevoked) {
       setSloNotice("Votre session a été révoquée par un administrateur. Vous avez été déconnecté du HUB.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+      const timer = setTimeout(() => {
+        setSloNotice(null);
+      }, 10000);
+      return () => clearTimeout(timer);
+    } else if (isSlo) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setSloNotice("Déconnexion globale (SLO) réussie : votre session et vos accès applicatifs ont été révoqués.");
       window.history.replaceState({}, document.title, window.location.pathname);
       const timer = setTimeout(() => {
         setSloNotice(null);

@@ -15,13 +15,13 @@ const getMyApps = async (req, res) => {
           model: Role,
           include: {
             model: Application,
-            where: { status: 'Actif' },
+            where: { status: { [Op.in]: ['Actif', 'En maintenance'] } },
             required: false
           }
         },
         {
           model: Application,
-          where: { status: 'Actif' },
+          where: { status: { [Op.in]: ['Actif', 'En maintenance'] } },
           required: false
         }
       ]
@@ -83,7 +83,7 @@ const getMyApps = async (req, res) => {
           model: Role,
           include: {
             model: Application,
-            where: { status: 'Actif' },
+            where: { status: { [Op.in]: ['Actif', 'En maintenance'] } },
             required: false
           }
         }
@@ -98,9 +98,11 @@ const getMyApps = async (req, res) => {
     // Vérifier si l'utilisateur a un rôle admin
     let hasAdminRole = allRoles.some(r => r.name.toLowerCase().includes('admin'));
 
-    // Si l'utilisateur est un Administrateur (en DB ou via Rôle), il a accès à toutes les applications actives
+    // Si l'utilisateur est un Administrateur (en DB ou via Rôle), il a accès à toutes les applications
     if (user.is_admin || hasAdminRole) {
-      const allActiveApps = await Application.findAll({ where: { status: 'Actif' } });
+      const allActiveApps = await Application.findAll({
+        where: { status: { [Op.in]: ['Actif', 'En maintenance'] } }
+      });
       return res.json(allActiveApps);
     }
 
@@ -132,9 +134,20 @@ const launchApp = async (req, res) => {
   try {
     const appId = req.params.id;
     const app = await Application.findByPk(appId);
+    if (!app) {
+      return res.status(404).json({ message: 'Application introuvable' });
+    }
 
-    if (!app || app.status !== 'Actif') {
-      return res.status(404).json({ message: 'Application non disponible ou inactive' });
+    if (app.status === 'En maintenance') {
+      return res.status(503).json({
+        maintenance: true,
+        message: "L'application est actuellement en cours de maintenance.",
+        app_name: app.name
+      });
+    }
+
+    if (app.status !== 'Actif') {
+      return res.status(403).json({ message: 'Application non disponible ou inactive' });
     }
 
     if (app.auth_type !== 'SSO') {
@@ -159,8 +172,8 @@ const launchApp = async (req, res) => {
 
     const key = getPrivateKey();
     const ssoToken = hasAsymmetricKeys()
-      ? jwt.sign(ssoPayload, key, { algorithm: 'RS256', expiresIn: '60s' })
-      : jwt.sign(ssoPayload, key, { expiresIn: '60s' });
+      ? jwt.sign(ssoPayload, key, { algorithm: 'RS256', expiresIn: '5m' })
+      : jwt.sign(ssoPayload, key, { expiresIn: '5m' });
 
     // Enregistrement de la session active de l'application pour le Single Logout (SLO)
     try {

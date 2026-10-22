@@ -89,7 +89,33 @@ const broadcastSingleLogout = async ({ user, ip = '127.0.0.1', initiator = 'USER
     const targetApps = Array.from(targetsMap.values());
 
     // 4. Envoyer les signaux de révocation Back-Channel en parallèle avec timeout de protection
-    const notificationPromises = targetApps.map(async (app) => {
+    const endpointsToNotify = [];
+    const registeredUrls = new Set();
+    targetApps.forEach(app => {
+      if (app.slo_url && app.slo_url.trim()) {
+        const u = app.slo_url.trim();
+        if (!registeredUrls.has(u)) {
+          registeredUrls.add(u);
+          endpointsToNotify.push({ app_id: app.id, app_name: app.name, slo_url: u });
+        }
+      }
+      const n = (app.name || '').toLowerCase();
+      if (n.includes('med')) {
+        const localMed = 'http://localhost:5000/api/auth/slo';
+        if (!registeredUrls.has(localMed)) {
+          registeredUrls.add(localMed);
+          endpointsToNotify.push({ app_id: app.id + '_local', app_name: app.name + ' (Local)', slo_url: localMed });
+        }
+      } else if (n.includes('parking')) {
+        const localPark = 'http://localhost:3000/api/auth/slo';
+        if (!registeredUrls.has(localPark)) {
+          registeredUrls.add(localPark);
+          endpointsToNotify.push({ app_id: app.id + '_local', app_name: app.name + ' (Local)', slo_url: localPark });
+        }
+      }
+    });
+
+    const notificationPromises = endpointsToNotify.map(async (app) => {
       const sloUrl = app.slo_url ? app.slo_url.trim() : null;
 
       if (!sloUrl) {
@@ -121,7 +147,7 @@ const broadcastSingleLogout = async ({ user, ip = '127.0.0.1', initiator = 'USER
             reason: initiator === 'ADMIN' ? 'ADMIN_FORCE_REVOCATION' : 'USER_SINGLE_LOGOUT',
             timestamp: new Date().toISOString()
           }),
-          signal: AbortSignal.timeout(1200)
+          signal: AbortSignal.timeout(5000)
         });
 
         return {

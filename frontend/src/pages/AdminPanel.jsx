@@ -993,7 +993,11 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                                   <strong>{app.name}</strong>
                                 </div>
                               </td>
-
+                              <td>
+                                <span className={`badge-pill-type ${app.auth_type === 'SSO' || !app.auth_type ? 'badge-pill-purple' : 'badge-pill-blue'}`}>
+                                  {app.auth_type === 'SSO' || !app.auth_type ? 'SSO' : 'Redirection'}
+                                </span>
+                              </td>
                               <td><span className="status-capsule active">{app.status || 'Actif'}</span></td>
                             </tr>
                           ))}
@@ -1114,6 +1118,12 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                                   <div className="user-subtext">{app.description || 'Application d\'entreprise BCRG'}</div>
                                 </div>
                               </div>
+                            </td>
+
+                            <td>
+                              <span className={`badge-pill-type ${app.auth_type === 'SSO' || !app.auth_type ? 'badge-pill-purple' : 'badge-pill-blue'}`}>
+                                {app.auth_type === 'SSO' || !app.auth_type ? 'SSO Sécurisé' : 'Redirection simple'}
+                              </span>
                             </td>
 
                             <td>
@@ -1493,12 +1503,12 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
               <div className="form-group">
                 <label>Mode de connexion</label>
                 <select value={newApp.auth_type} onChange={e => setNewApp({ ...newApp, auth_type: e.target.value })}>
-                  <option value="SSO">SSO Sécurisé (Jeton JWT éphémère transmis par POST)</option>
+                  <option value="SSO">SSO Sécurisé (Jeton JWT éphémère)</option>
                   <option value="NONE">Redirection simple (Sans jeton)</option>
                 </select>
                 <small style={{ color: '#64748b', fontSize: '0.8rem', display: 'block', marginTop: '4px' }}>
                   {newApp.auth_type === 'SSO'
-                    ? "Le HUB transmettra un jeton SSO temporaire via requête POST sécurisée (sans exposition dans l'URL)."
+                    ? "Le HUB transmettra un jeton SSO temporaire sécurisé à l'application cible."
                     : "Le HUB ouvrira l'application telle quelle, l'utilisateur devra se connecter."}
                 </small>
               </div>
@@ -1508,7 +1518,6 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                 <select value={newApp.status} onChange={e => setNewApp({ ...newApp, status: e.target.value })}>
                   <option value="Actif">Actif</option>
                   <option value="En maintenance">En maintenance</option>
-                  <option value="Inactif">Inactif</option>
                 </select>
               </div>
               <div className="modal-actions">

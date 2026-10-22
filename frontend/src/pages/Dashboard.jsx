@@ -18,7 +18,8 @@ import {
   Phone,
   Building,
   Hash,
-  ExternalLink
+  ExternalLink,
+  Wrench
 } from 'lucide-react';
 import logo from '../assets/bcrg_logo_seul_inverse_144.png';
 import './Dashboard.css';
@@ -193,6 +194,10 @@ const Dashboard = () => {
   };
 
   const openApp = async (app) => {
+    if (app.status === 'En maintenance') {
+      navigate(`/maintenance?appName=${encodeURIComponent(app.name)}&appId=${app.id}&desc=${encodeURIComponent(app.description || '')}`);
+      return;
+    }
     if (app.status !== 'Actif') return;
     try {
       if (app.auth_type === 'SSO') {
@@ -205,27 +210,23 @@ const Dashboard = () => {
         const targetUrl = res.data?.url || app.url;
 
         if (ssoToken) {
-          // Transmission sécurisée par POST (évite l'exposition du jeton dans l'URL / query param)
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = targetUrl;
-          form.target = '_blank';
-          form.rel = 'noopener noreferrer';
-
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = 'sso_token';
-          input.value = ssoToken;
-          form.appendChild(input);
-
-          document.body.appendChild(form);
-          form.submit();
-          document.body.removeChild(form);
+          try {
+            const parsedUrl = new URL(targetUrl);
+            parsedUrl.searchParams.set('sso_token', ssoToken);
+            window.open(parsedUrl.toString(), '_blank', 'noopener,noreferrer');
+          } catch {
+            const separator = targetUrl.includes('?') ? '&' : '?';
+            window.open(`${targetUrl}${separator}sso_token=${encodeURIComponent(ssoToken)}`, '_blank', 'noopener,noreferrer');
+          }
           return;
         }
       }
       window.open(app.url, '_blank', 'noopener,noreferrer');
     } catch (e) {
+      if (e.response?.status === 503 || e.response?.data?.maintenance) {
+        navigate(`/maintenance?appName=${encodeURIComponent(app.name)}&appId=${app.id}`);
+        return;
+      }
       console.error("Erreur lors du lancement SSO", e);
       window.open(app.url, '_blank', 'noopener,noreferrer');
     }
@@ -353,10 +354,6 @@ const Dashboard = () => {
             )}
           </div>
           <div className="topbar-right">
-            <button className="bell-btn">
-              <Bell size={20} />
-              <span className="notification-dot"></span>
-            </button>
             <div className="user-profile-container">
               <div className="user-profile" onClick={toggleDropdown}>
                 <div className="avatar">{initial}</div>
@@ -423,15 +420,16 @@ const Dashboard = () => {
                 ) : (
                   <div className="apps-grid">
                     {myApps.map((app) => {
-                      const isDisabled = app.status !== 'Actif';
+                      const isMaintenance = app.status === 'En maintenance';
+                      const isDisabled = app.status !== 'Actif' && !isMaintenance;
                       const badge = STATUS_COLORS[app.status] || STATUS_COLORS['Actif'];
                       return (
                         <div
                           key={app.id}
-                          className={`app-card ${isDisabled ? 'app-card-disabled' : ''}`}
+                          className={`app-card ${isMaintenance ? 'app-card-maintenance' : ''} ${isDisabled ? 'app-card-disabled' : ''}`}
                           onClick={() => openApp(app)}
                           style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
-                          title={isDisabled ? `Application ${app.status}` : `Ouvrir ${app.name}`}
+                          title={isMaintenance ? `Application en maintenance — Cliquez pour voir les détails` : (isDisabled ? `Application ${app.status}` : `Ouvrir ${app.name}`)}
                         >
                           <div className="app-icon">
                             <AppLogo app={app} size={30} />
@@ -439,7 +437,8 @@ const Dashboard = () => {
                           <div className="app-details">
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                               <h4>{app.name}</h4>
-                              {!isDisabled && <ExternalLink size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />}
+                              {!isDisabled && !isMaintenance && <ExternalLink size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />}
+                              {isMaintenance && <Wrench size={14} style={{ color: '#d97706', flexShrink: 0 }} />}
                             </div>
                             <p>{app.description || 'Application BCRG'}</p>
                             <span className="app-status-badge" style={{ backgroundColor: badge.bg, color: badge.color }}>

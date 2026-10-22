@@ -1,4 +1,4 @@
-﻿/* Layout Variables */
+/* Layout Variables */
 :root {
   --bcrg-green: #1a3c2c;
   --bcrg-green-light: #25513d;
@@ -281,6 +281,16 @@
   transform: none;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   border-color: #e1e7ec;
+}
+
+.app-card-maintenance {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: linear-gradient(145deg, #ffffff 0%, #fffdf5 100%);
+}
+
+.app-card-maintenance:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 16px 32px -8px rgba(245, 158, 11, 0.2);
 }
 
 /* --- DROPDOWN PROFILE --- */
@@ -656,24 +666,11 @@
   overflow: hidden;
 }
 
-.app-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; height: 4px;
-  background: linear-gradient(90deg, var(--bcrg-green), #4ade80);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
 .app-card:hover {
   transform: translateY(-8px) scale(1.02);
   box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.12);
   border-color: rgba(26, 60, 44, 0.15);
   background: #ffffff;
-}
-
-.app-card:hover::before {
-  opacity: 1;
 }
 
 .app-icon {
