@@ -21,6 +21,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ==========================================
   # ⚙️ 2. API Backend (Node.js / Express)
@@ -52,10 +57,13 @@ services:
       ENABLE_CLUSTER: ${ENABLE_CLUSTER:-true}
     networks:
       - bcrg-net
-    ports:
-      - "5001:5001"
     expose:
       - "5001"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ==========================================
   # 🌐 3. Frontend & Reverse Proxy (Nginx)
@@ -74,6 +82,11 @@ services:
       - "${PORT:-80}:80"
     networks:
       - bcrg-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 # ==========================================
 # 💾 Volumes persistants
