@@ -31,7 +31,44 @@ const authenticateLdap = async (identifier, password) => {
       options.userDn = identifier.includes('@') ? identifier : `${identifier}@${config.name}`;
     }
 
-    const authenticatedUser = await authenticate(options);
+    let authenticatedUser;
+    try {
+      authenticatedUser = await authenticate(options);
+    } catch (authErr) {
+      const errMsg = authErr.message || '';
+      const isReferral = errMsg.includes('RefErr') || errMsg.includes('0000202B') || errMsg.includes('Referral') || authErr.code === 10;
+      
+      if (isReferral) {
+        console.warn("⚠️ AD Referral détecté sur port 389. Tentative automatique via Catalogue Global (port 3268)...");
+        // Tentative 1 : Port 3268 (Catalogue Global Active Directory qui ne produit pas de referrals)
+        try {
+          const gcOptions = {
+            ...options,
+            ldapOpts: {
+              ...options.ldapOpts,
+              url: `ldap://${config.server}:3268`
+            }
+          };
+          authenticatedUser = await authenticate(gcOptions);
+        } catch (gcErr) {
+          console.warn("Échec GC 3268, tentative de Bind direct:", gcErr.message);
+          // Tentative 2 : Authentification par Bind direct avec UPN
+          const domain = config.base_dn
+            ? config.base_dn.split(',').filter(p => p.toUpperCase().startsWith('DC=')).map(p => p.split('=')[1]).join('.')
+            : 'bcrg.guinee.org';
+          const upn = identifier.includes('@') ? identifier : `${identifier}@${domain}`;
+          const directOptions = {
+            ldapOpts: options.ldapOpts,
+            userDn: upn,
+            userPassword: password
+          };
+          const directRes = await authenticate(directOptions);
+          authenticatedUser = directRes || { sAMAccountName: identifier, mail: upn };
+        }
+      } else {
+        throw authErr;
+      }
+    }
     
     return { success: true, user: authenticatedUser };
   } catch (error) {
@@ -112,7 +149,16 @@ const searchLdap = async (config, filter, attributes) => {
         res.on('searchEntry', (entry) => {
           entries.push(entry.pojo);
         });
+        res.on('searchReference', (referral) => {
+          // Ignorer les referrals AD pour éviter les blocages de partition DNS
+        });
         res.on('error', (err) => {
+          const isRef = err.name === 'ReferralError' || err.code === 10 || (err.message && err.message.includes('Referral'));
+          if (isRef) {
+            // Ne pas planter sur un referral, renvoyer les entrées collectées
+            client.unbind();
+            return resolve(entries);
+          }
           client.unbind();
           reject(err);
         });
