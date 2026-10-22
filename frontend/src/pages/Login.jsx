@@ -323,9 +323,15 @@ const Login = () => {
                     disabled={isLoading || mfaCode.length < 6}
                   >
                     {isLoading ? (
-                      <><Loader2 size={18} className="spinner" /> Validation...</>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        <Loader2 size={18} className="spinner" />
+                        <span>Validation...</span>
+                      </span>
                     ) : (
-                      <><ShieldCheck size={18} /> Valider l'accès</>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        <ShieldCheck size={18} />
+                        <span>Valider l'accès</span>
+                      </span>
                     )}
                   </button>
                 </div>
@@ -422,9 +428,15 @@ const Login = () => {
 
                 <button type="submit" className="btn-submit" disabled={isLoading}>
                   {isLoading ? (
-                    <><Loader2 size={18} className="spinner" /> Connexion...</>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <Loader2 size={18} className="spinner" />
+                      <span>Connexion...</span>
+                    </span>
                   ) : (
-                    <><LogIn size={18} /> Se Connecter</>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <LogIn size={18} />
+                      <span>Se Connecter</span>
+                    </span>
                   )}
                 </button>
               </form>
