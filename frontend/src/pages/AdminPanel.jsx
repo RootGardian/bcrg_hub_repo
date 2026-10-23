@@ -1647,29 +1647,6 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                   <label>Département</label>
                   <input value={newUser.department} onChange={e => setNewUser({ ...newUser, department: e.target.value })} placeholder="ex: DSI, Comptabilité" />
                 </div>
-                <div className="form-group">
-                  <label>Rôle attribué (RBAC)</label>
-                  <select
-                    value={newUser.role_id}
-                    onChange={e => {
-                      const selectedId = e.target.value;
-                      const selectedRole = roles.find(r => String(r.id) === String(selectedId));
-                      const isAdminRole = selectedRole ? (selectedRole.name || '').toLowerCase().includes('admin') : false;
-                      setNewUser({
-                        ...newUser,
-                        role_id: selectedId,
-                        is_admin: isAdminRole ? true : newUser.is_admin
-                      });
-                    }}
-                  >
-                    <option value="">Employé standard</option>
-                    {roles.map(r => (
-                      <option key={r.id} value={r.id}>
-                        {r.name} {r.name.toLowerCase().includes('admin') ? ' (Droits Admin)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               {/* Row 4: Banner Privilèges Admin */}
