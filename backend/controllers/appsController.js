@@ -150,7 +150,8 @@ const launchApp = async (req, res) => {
       return res.status(403).json({ message: 'Application non disponible ou inactive' });
     }
 
-    if (app.auth_type !== 'SSO') {
+    const isSso = !app.auth_type || String(app.auth_type).toUpperCase() === 'SSO';
+    if (!isSso) {
       return res.json({ url: app.url, auth_type: app.auth_type });
     }
 

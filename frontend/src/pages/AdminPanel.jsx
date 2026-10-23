@@ -1156,7 +1156,7 @@ const AdminPanel = ({ activeTab: propActiveTab, setActiveTab: propSetActiveTab, 
                                 </button>
                                 {activeActionMenu === `app-${app.id}` && (
                                   <div className="action-menu-dropdown">
-                                    <button className="action-menu-item" onClick={() => { setNewApp({ name: app.name, url: app.url, description: app.description, auth_type: app.auth_type, status: app.status, icon_url: app.icon_url || '', slo_url: app.slo_url || '' }); setEditingAppId(app.id); setShowAppModal(true); setActiveActionMenu(null); }}><Edit size={16} className="action-menu-icon" /> Modifier</button>
+                                    <button className="action-menu-item" onClick={() => { setNewApp({ name: app.name, url: app.url, description: app.description, auth_type: app.auth_type || 'SSO', status: app.status, icon_url: app.icon_url || '', slo_url: app.slo_url || '' }); setEditingAppId(app.id); setShowAppModal(true); setActiveActionMenu(null); }}><Edit size={16} className="action-menu-icon" /> Modifier</button>
                                     <button className="action-menu-item delete" onClick={() => { handleDeleteApp(app.id); setActiveActionMenu(null); }}><Trash2 size={16} className="action-menu-icon" /> Supprimer</button>
                                   </div>
                                 )}

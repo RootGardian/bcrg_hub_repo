@@ -200,10 +200,17 @@ const Dashboard = () => {
     }
     if (app.status !== 'Actif') return;
     try {
-      if (app.auth_type === 'SSO') {
+      const isSso = !app.auth_type || String(app.auth_type).toUpperCase() === 'SSO';
+      if (isSso) {
+        const token = localStorage.getItem('token');
+        const config = {
+          withCredentials: true,
+          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+        };
         const res = await axios.post(
           `${API_URL}/api/apps/${app.id}/launch`,
-          {}
+          {},
+          config
         );
 
         const ssoToken = res.data?.sso_token;
