@@ -16,6 +16,9 @@ const protect = async (req, res, next) => {
   ) {
     // 2. Repli vers l'en-tête Authorization Bearer (compatibilité API/SSO)
     token = req.headers.authorization.split(' ')[1];
+  } else if (req.query && req.query.token) {
+    // 3. Jeton transmis en paramètre d'URL (pour les redirections SSO directes dans un nouvel onglet)
+    token = req.query.token;
   }
 
   if (token) {

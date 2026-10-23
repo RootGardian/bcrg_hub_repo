@@ -198,7 +198,7 @@ const Dashboard = () => {
     if (isProfileDropdownOpen) setIsProfileDropdownOpen(false);
   };
 
-  const openApp = async (app) => {
+  const openApp = (app) => {
     if (app.status === 'En maintenance') {
       navigate(`/maintenance?appName=${encodeURIComponent(app.name)}&appId=${app.id}&desc=${encodeURIComponent(app.description || '')}`);
       return;
@@ -212,81 +212,20 @@ const Dashboard = () => {
       return;
     }
 
-    // Mode SSO
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert("Votre session BCRG HUB a expiré. Veuillez vous reconnecter.");
-        localStorage.removeItem('user');
-        navigate('/login');
-        return;
-      }
-      const config = {
-        withCredentials: true,
-        headers: { Authorization: `Bearer ${token}` }
-      };
-      const res = await axios.post(
-        `${API_URL}/api/apps/${app.id}/launch`,
-        {},
-        config
-      );
-
-      const ssoToken = res.data?.sso_token;
-      let targetUrl = res.data?.url || app.url;
-
-      if (!ssoToken) {
-        console.error("[SSO] Le backend n'a pas retourné de sso_token. Réponse :", res.data);
-        alert(`Erreur SSO : le serveur n'a pas généré de jeton pour "${app.name}".\n\nDétails : ${JSON.stringify(res.data)}`);
-        return;
-      }
-
-      // Si l'application cible a pour racine '/', router vers '/login' pour éviter que Next.js
-      // ne supprime le paramètre sso_token lors d'une redirection HTTP 307 de la racine
-      try {
-        const parsed = new URL(targetUrl);
-        if ((parsed.pathname === '' || parsed.pathname === '/') && (app.name?.toLowerCase().includes('parking') || app.name?.toLowerCase().includes('med'))) {
-          parsed.pathname = '/login';
-          targetUrl = parsed.toString();
-        }
-      } catch (e) {
-        // Conserver targetUrl si URL non parsable
-      }
-
-      // Technique fiable : formulaire HTML caché soumis vers un nouvel onglet.
-      // Contrairement à window.open(), la soumission de formulaire n'est JAMAIS bloquée
-      // par les bloqueurs de popups et transmet TOUJOURS les paramètres au serveur cible.
-      const form = document.createElement('form');
-      form.method = 'GET';
-      form.action = targetUrl;
-      form.target = '_blank';
-      form.style.display = 'none';
-
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'sso_token';
-      input.value = ssoToken;
-      form.appendChild(input);
-
-      document.body.appendChild(form);
-      form.submit();
-      form.remove();
-    } catch (e) {
-      if (e.response?.status === 503 || e.response?.data?.maintenance) {
-        navigate(`/maintenance?appName=${encodeURIComponent(app.name)}&appId=${app.id}`);
-        return;
-      }
-      if (e.response?.status === 401) {
-        alert("Votre session BCRG HUB a expiré ou n'est plus active. Veuillez vous reconnecter.");
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        navigate('/login');
-        return;
-      }
-      const errMsg = e.response?.data?.message || e.message || 'Erreur inconnue';
-      const errStatus = e.response?.status || 'N/A';
-      console.error(`[SSO] Échec lancement "${app.name}" (HTTP ${errStatus}):`, errMsg, e);
-      alert(`Échec du lancement SSO pour "${app.name}".\n\nStatut : ${errStatus}\nErreur : ${errMsg}\n\nVérifiez la console (F12) pour plus de détails.`);
+    // Mode SSO : Redirection directe par le backend (302)
+    // Zéro async, Zéro popup blocker : window.open est appelé directement dans le gestionnaire de clic
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert("Votre session BCRG HUB a expiré. Veuillez vous reconnecter.");
+      localStorage.removeItem('user');
+      navigate('/login');
+      return;
     }
+
+    // Appel synchrone immédiat dans le contexte direct du clic :
+    // Le navigateur n'applique aucun bloqueur de popups et le backend 302 redirige instantanément
+    const ssoRedirectUrl = `${API_URL}/api/apps/${app.id}/sso-redirect?token=${encodeURIComponent(token)}`;
+    window.open(ssoRedirectUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (

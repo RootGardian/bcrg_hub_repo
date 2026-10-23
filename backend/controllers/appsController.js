@@ -244,6 +244,99 @@ const receiveSloSignal = async (req, res) => {
   }
 };
 
+// GET /api/apps/:id/sso-redirect — Génération du token SSO et redirection HTTP 302 directe
+const ssoRedirect = async (req, res) => {
+  try {
+    const appId = req.params.id;
+    const app = await Application.findByPk(appId);
+    if (!app) {
+      return res.status(404).send('Application introuvable');
+    }
+
+    if (app.status === 'En maintenance') {
+      return res.redirect(`/maintenance?appName=${encodeURIComponent(app.name)}&appId=${app.id}`);
+    }
+
+    if (app.status !== 'Actif') {
+      return res.status(403).send('Application non disponible ou inactive');
+    }
+
+    let targetUrl = app.url;
+
+    // Normalisation de l'URL pour les applications dont la mire SSO est sur /login
+    try {
+      const parsed = new URL(targetUrl);
+      if ((parsed.pathname === '' || parsed.pathname === '/') && (app.name?.toLowerCase().includes('parking') || app.name?.toLowerCase().includes('med'))) {
+        parsed.pathname = '/login';
+        targetUrl = parsed.toString();
+      }
+    } catch (e) {
+      // Conserver targetUrl
+    }
+
+    const isSso = !app.auth_type || String(app.auth_type).toUpperCase() === 'SSO';
+    if (!isSso) {
+      return res.redirect(302, targetUrl);
+    }
+
+    const user = req.user;
+    const ssoPayload = {
+      sub: user.id,
+      id: user.id,
+      matricule: user.matricule,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      department: user.department,
+      role: user.Roles?.[0]?.name || (user.is_admin ? 'Admin' : 'User'),
+      aud: targetUrl,
+      app_id: app.id,
+      app_name: app.name,
+      iss: 'BCRG_HUB'
+    };
+
+    const key = getPrivateKey();
+    const ssoToken = hasAsymmetricKeys()
+      ? jwt.sign(ssoPayload, key, { algorithm: 'RS256', expiresIn: '5m' })
+      : jwt.sign(ssoPayload, key, { expiresIn: '5m' });
+
+    // Enregistrement de la session active de l'application pour le SLO
+    try {
+      await UserAppSession.update(
+        { status: 'REVOKED', revoked_at: new Date() },
+        { where: { user_id: user.id, application_id: app.id, status: 'ACTIVE' } }
+      );
+      await UserAppSession.create({
+        user_id: user.id,
+        application_id: app.id,
+        status: 'ACTIVE',
+        session_token: ssoToken.slice(-25),
+        created_at: new Date()
+      });
+    } catch (sessionErr) {
+      console.warn('Note: enregistrement session applicative:', sessionErr.message);
+    }
+
+    // Enregistrement dans l'audit trail
+    await logAuditEvent({
+      type: 'SSO',
+      action: `Redirection SSO directe (302) pour ${app.name}`,
+      user: user.email || user.matricule,
+      ip: req.ip || req.connection?.remoteAddress || '127.0.0.1',
+      app: app.name,
+      status: 'SUCCÈS'
+    });
+
+    const separator = targetUrl.includes('?') ? '&' : '?';
+    const finalRedirectUrl = `${targetUrl}${separator}sso_token=${encodeURIComponent(ssoToken)}`;
+
+    return res.redirect(302, finalRedirectUrl);
+  } catch (error) {
+    console.error('Erreur lors de la redirection SSO directe:', error);
+    res.status(500).send(`Erreur lors du lancement SSO: ${error.message}`);
+  }
+};
+
 // GET /api/apps/active-sessions — Liste des sessions applicatives actives pour l'utilisateur
 const getActiveSessions = async (req, res) => {
   try {
@@ -261,5 +354,6 @@ const getActiveSessions = async (req, res) => {
   }
 };
 
-module.exports = { getMyApps, launchApp, receiveSloSignal, getActiveSessions };
+module.exports = { getMyApps, launchApp, ssoRedirect, receiveSloSignal, getActiveSessions };
+
 
