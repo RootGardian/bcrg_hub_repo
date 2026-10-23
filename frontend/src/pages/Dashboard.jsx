@@ -232,12 +232,24 @@ const Dashboard = () => {
       );
 
       const ssoToken = res.data?.sso_token;
-      const targetUrl = res.data?.url || app.url;
+      let targetUrl = res.data?.url || app.url;
 
       if (!ssoToken) {
         console.error("[SSO] Le backend n'a pas retourné de sso_token. Réponse :", res.data);
         alert(`Erreur SSO : le serveur n'a pas généré de jeton pour "${app.name}".\n\nDétails : ${JSON.stringify(res.data)}`);
         return;
+      }
+
+      // Si l'application cible a pour racine '/', router vers '/login' pour éviter que Next.js
+      // ne supprime le paramètre sso_token lors d'une redirection HTTP 307 de la racine
+      try {
+        const parsed = new URL(targetUrl);
+        if ((parsed.pathname === '' || parsed.pathname === '/') && (app.name?.toLowerCase().includes('parking') || app.name?.toLowerCase().includes('med'))) {
+          parsed.pathname = '/login';
+          targetUrl = parsed.toString();
+        }
+      } catch (e) {
+        // Conserver targetUrl si URL non parsable
       }
 
       // Technique fiable : formulaire HTML caché soumis vers un nouvel onglet.
