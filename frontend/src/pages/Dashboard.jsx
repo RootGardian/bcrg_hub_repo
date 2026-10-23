@@ -212,10 +212,14 @@ const Dashboard = () => {
       return;
     }
 
-    // Mode SSO (par défaut si auth_type est null, vide ou 'SSO')
+    // Mode SSO : ouvrir le nouvel onglet IMMÉDIATEMENT (dans le contexte du clic)
+    // pour éviter que le bloqueur de popups ne bloque window.open() après l'await
+    const newTab = window.open('about:blank', '_blank');
+
     try {
       const token = localStorage.getItem('token');
       if (!token) {
+        if (newTab) newTab.close();
         alert("Votre session BCRG HUB a expiré. Veuillez vous reconnecter.");
         localStorage.removeItem('user');
         navigate('/login');
@@ -235,20 +239,32 @@ const Dashboard = () => {
       const targetUrl = res.data?.url || app.url;
 
       if (!ssoToken) {
+        if (newTab) newTab.close();
         console.error("[SSO] Le backend n'a pas retourné de sso_token. Réponse :", res.data);
         alert(`Erreur SSO : le serveur n'a pas généré de jeton pour "${app.name}".\n\nDétails : ${JSON.stringify(res.data)}`);
         return;
       }
 
+      // Construire l'URL finale avec le sso_token
+      let finalUrl;
       try {
         const parsedUrl = new URL(targetUrl);
         parsedUrl.searchParams.set('sso_token', ssoToken);
-        window.open(parsedUrl.toString(), '_blank', 'noopener,noreferrer');
+        finalUrl = parsedUrl.toString();
       } catch {
         const separator = targetUrl.includes('?') ? '&' : '?';
-        window.open(`${targetUrl}${separator}sso_token=${encodeURIComponent(ssoToken)}`, '_blank', 'noopener,noreferrer');
+        finalUrl = `${targetUrl}${separator}sso_token=${encodeURIComponent(ssoToken)}`;
+      }
+
+      // Naviguer l'onglet pré-ouvert vers l'URL SSO
+      if (newTab && !newTab.closed) {
+        newTab.location.href = finalUrl;
+      } else {
+        // Fallback si le popup a quand même été bloqué : naviguer dans l'onglet courant
+        window.location.href = finalUrl;
       }
     } catch (e) {
+      if (newTab && !newTab.closed) newTab.close();
       if (e.response?.status === 503 || e.response?.data?.maintenance) {
         navigate(`/maintenance?appName=${encodeURIComponent(app.name)}&appId=${app.id}`);
         return;
@@ -260,7 +276,6 @@ const Dashboard = () => {
         navigate('/login');
         return;
       }
-      // ⚠️ NE PLUS ouvrir silencieusement sans token — afficher l'erreur réelle
       const errMsg = e.response?.data?.message || e.message || 'Erreur inconnue';
       const errStatus = e.response?.status || 'N/A';
       console.error(`[SSO] Échec lancement "${app.name}" (HTTP ${errStatus}):`, errMsg, e);
