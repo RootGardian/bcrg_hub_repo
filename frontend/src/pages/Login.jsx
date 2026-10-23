@@ -10,7 +10,7 @@ const cleanLdapError = (rawMsg) => {
   if (!rawMsg) return "Identifiant ou mot de passe incorrect.";
   const msg = String(rawMsg);
   if (/data 52e|data 525|80090308|InvalidCredentials|DSID-0C090532/i.test(msg)) {
-    return "Matricule, email ou mot de passe Active Directory incorrect.";
+    return "Email ou mot de passe incorrect.";
   }
   if (/data 530/i.test(msg)) {
     return "Connexion non autorisée sur cette plage horaire (politique horaire Active Directory).";
@@ -19,16 +19,16 @@ const cleanLdapError = (rawMsg) => {
     return "Connexion non autorisée depuis ce poste de travail.";
   }
   if (/data 532/i.test(msg)) {
-    return "Votre mot de passe Active Directory a expiré. Veuillez le renouveler.";
+    return "Votre mot de passe a expiré. Veuillez le renouveler.";
   }
   if (/data 533/i.test(msg)) {
-    return "Votre compte Active Directory est désactivé. Veuillez contacter le support informatique de la BCRG.";
+    return "Votre compte est désactivé. Veuillez contacter le support informatique de la BCRG.";
   }
   if (/data 701/i.test(msg)) {
-    return "Votre compte Active Directory a expiré. Veuillez contacter le support informatique de la BCRG.";
+    return "Votre compte a expiré. Veuillez contacter le support informatique de la BCRG.";
   }
   if (/data 773/i.test(msg)) {
-    return "Vous devez réinitialiser votre mot de passe Active Directory avant de pouvoir vous connecter.";
+    return "Vous devez réinitialiser votre mot de passe avant de pouvoir vous connecter.";
   }
   if (/data 775/i.test(msg)) {
     return "Compte verrouillé suite à plusieurs tentatives infructueuses. Veuillez patienter ou contacter le support informatique.";

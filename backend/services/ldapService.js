@@ -37,7 +37,7 @@ const authenticateLdap = async (identifier, password) => {
     } catch (authErr) {
       const errMsg = authErr.message || '';
       const isReferral = errMsg.includes('RefErr') || errMsg.includes('0000202B') || errMsg.includes('Referral') || authErr.code === 10;
-      
+
       if (isReferral) {
         console.warn("⚠️ AD Referral détecté sur port 389. Tentative automatique via Catalogue Global (port 3268)...");
         // Tentative 1 : Port 3268 (Catalogue Global Active Directory qui ne produit pas de referrals)
@@ -69,7 +69,7 @@ const authenticateLdap = async (identifier, password) => {
         throw authErr;
       }
     }
-    
+
     return { success: true, user: authenticatedUser };
   } catch (error) {
     const friendlyMessage = formatLdapErrorMessage(error.message || error);
@@ -83,25 +83,25 @@ const formatLdapErrorMessage = (rawError) => {
 
   // Codes d'erreur Active Directory (AcceptSecurityContext / Win32 error)
   if (/data 52e/i.test(msg) || /data 525/i.test(msg) || /InvalidCredentials/i.test(msg) || /80090308/i.test(msg)) {
-    return "Matricule, email ou mot de passe Active Directory incorrect.";
+    return "Email ou mot de passe incorrect.";
   }
   if (/data 530/i.test(msg)) {
-    return "Connexion non autorisée sur cette plage horaire (politique horaire Active Directory).";
+    return "Connexion non autorisée sur cette plage horaire (politique horaire).";
   }
   if (/data 531/i.test(msg)) {
     return "Connexion non autorisée depuis ce poste de travail.";
   }
   if (/data 532/i.test(msg)) {
-    return "Votre mot de passe Active Directory a expiré. Veuillez le renouveler.";
+    return "Votre mot de passe a expiré. Veuillez le renouveler.";
   }
   if (/data 533/i.test(msg)) {
-    return "Votre compte Active Directory est désactivé. Veuillez contacter le support informatique de la BCRG.";
+    return "Votre compte est désactivé. Veuillez contacter le support informatique de la BCRG.";
   }
   if (/data 701/i.test(msg)) {
-    return "Votre compte Active Directory a expiré. Veuillez contacter le support informatique de la BCRG.";
+    return "Votre compte a expiré. Veuillez contacter le support informatique de la BCRG.";
   }
   if (/data 773/i.test(msg)) {
-    return "Vous devez réinitialiser votre mot de passe Active Directory avant de pouvoir vous connecter.";
+    return "Vous devez réinitialiser votre mot de passe avant de pouvoir vous connecter.";
   }
   if (/data 775/i.test(msg)) {
     return "Compte verrouillé suite à plusieurs tentatives infructueuses. Veuillez patienter ou contacter le support informatique.";
@@ -220,7 +220,7 @@ const getLdapUsers = async () => {
   // Filter for users (Active Directory standard)
   const filter = '(&(objectCategory=person)(objectClass=user))';
   const entries = await searchLdap(config, filter, ['cn', 'sAMAccountName', 'mail', 'givenName', 'sn', 'userPrincipalName', 'employeeID', 'employeeNumber', 'description', 'distinguishedName']);
-  
+
   return entries.map(e => {
     const getAttr = (name) => {
       if (!e.attributes || !Array.isArray(e.attributes)) return '';
@@ -245,7 +245,7 @@ const getLdapGroups = async () => {
   // Filter for groups
   const filter = '(objectClass=group)';
   const entries = await searchLdap(config, filter, ['cn', 'sAMAccountName', 'description', 'distinguishedName']);
-  
+
   return entries.map(e => {
     const getAttr = (name) => {
       if (!e.attributes || !Array.isArray(e.attributes)) return '';
