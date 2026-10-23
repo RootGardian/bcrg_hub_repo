@@ -212,14 +212,10 @@ const Dashboard = () => {
       return;
     }
 
-    // Mode SSO : ouvrir le nouvel onglet IMMÉDIATEMENT (dans le contexte du clic)
-    // pour éviter que le bloqueur de popups ne bloque window.open() après l'await
-    const newTab = window.open('about:blank', '_blank');
-
+    // Mode SSO
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        if (newTab) newTab.close();
         alert("Votre session BCRG HUB a expiré. Veuillez vous reconnecter.");
         localStorage.removeItem('user');
         navigate('/login');
@@ -239,32 +235,30 @@ const Dashboard = () => {
       const targetUrl = res.data?.url || app.url;
 
       if (!ssoToken) {
-        if (newTab) newTab.close();
         console.error("[SSO] Le backend n'a pas retourné de sso_token. Réponse :", res.data);
         alert(`Erreur SSO : le serveur n'a pas généré de jeton pour "${app.name}".\n\nDétails : ${JSON.stringify(res.data)}`);
         return;
       }
 
-      // Construire l'URL finale avec le sso_token
-      let finalUrl;
-      try {
-        const parsedUrl = new URL(targetUrl);
-        parsedUrl.searchParams.set('sso_token', ssoToken);
-        finalUrl = parsedUrl.toString();
-      } catch {
-        const separator = targetUrl.includes('?') ? '&' : '?';
-        finalUrl = `${targetUrl}${separator}sso_token=${encodeURIComponent(ssoToken)}`;
-      }
+      // Technique fiable : formulaire HTML caché soumis vers un nouvel onglet.
+      // Contrairement à window.open(), la soumission de formulaire n'est JAMAIS bloquée
+      // par les bloqueurs de popups et transmet TOUJOURS les paramètres au serveur cible.
+      const form = document.createElement('form');
+      form.method = 'GET';
+      form.action = targetUrl;
+      form.target = '_blank';
+      form.style.display = 'none';
 
-      // Naviguer l'onglet pré-ouvert vers l'URL SSO
-      if (newTab && !newTab.closed) {
-        newTab.location.href = finalUrl;
-      } else {
-        // Fallback si le popup a quand même été bloqué : naviguer dans l'onglet courant
-        window.location.href = finalUrl;
-      }
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'sso_token';
+      input.value = ssoToken;
+      form.appendChild(input);
+
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
     } catch (e) {
-      if (newTab && !newTab.closed) newTab.close();
       if (e.response?.status === 503 || e.response?.data?.maintenance) {
         navigate(`/maintenance?appName=${encodeURIComponent(app.name)}&appId=${app.id}`);
         return;
