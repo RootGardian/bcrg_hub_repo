@@ -204,36 +204,50 @@ const Dashboard = () => {
       return;
     }
     if (app.status !== 'Actif') return;
-    try {
-      const isSso = !app.auth_type || String(app.auth_type).toUpperCase() === 'SSO';
-      if (isSso) {
-        const token = localStorage.getItem('token');
-        const config = {
-          withCredentials: true,
-          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {})
-        };
-        const res = await axios.post(
-          `${API_URL}/api/apps/${app.id}/launch`,
-          {},
-          config
-        );
 
-        const ssoToken = res.data?.sso_token;
-        const targetUrl = res.data?.url || app.url;
-
-        if (ssoToken) {
-          try {
-            const parsedUrl = new URL(targetUrl);
-            parsedUrl.searchParams.set('sso_token', ssoToken);
-            window.open(parsedUrl.toString(), '_blank', 'noopener,noreferrer');
-          } catch {
-            const separator = targetUrl.includes('?') ? '&' : '?';
-            window.open(`${targetUrl}${separator}sso_token=${encodeURIComponent(ssoToken)}`, '_blank', 'noopener,noreferrer');
-          }
-          return;
-        }
-      }
+    // Mode Redirection simple (sans jeton SSO) — ouvrir directement
+    const isNone = String(app.auth_type).toUpperCase() === 'NONE';
+    if (isNone) {
       window.open(app.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // Mode SSO (par défaut si auth_type est null, vide ou 'SSO')
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert("Votre session BCRG HUB a expiré. Veuillez vous reconnecter.");
+        localStorage.removeItem('user');
+        navigate('/login');
+        return;
+      }
+      const config = {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${token}` }
+      };
+      const res = await axios.post(
+        `${API_URL}/api/apps/${app.id}/launch`,
+        {},
+        config
+      );
+
+      const ssoToken = res.data?.sso_token;
+      const targetUrl = res.data?.url || app.url;
+
+      if (!ssoToken) {
+        console.error("[SSO] Le backend n'a pas retourné de sso_token. Réponse :", res.data);
+        alert(`Erreur SSO : le serveur n'a pas généré de jeton pour "${app.name}".\n\nDétails : ${JSON.stringify(res.data)}`);
+        return;
+      }
+
+      try {
+        const parsedUrl = new URL(targetUrl);
+        parsedUrl.searchParams.set('sso_token', ssoToken);
+        window.open(parsedUrl.toString(), '_blank', 'noopener,noreferrer');
+      } catch {
+        const separator = targetUrl.includes('?') ? '&' : '?';
+        window.open(`${targetUrl}${separator}sso_token=${encodeURIComponent(ssoToken)}`, '_blank', 'noopener,noreferrer');
+      }
     } catch (e) {
       if (e.response?.status === 503 || e.response?.data?.maintenance) {
         navigate(`/maintenance?appName=${encodeURIComponent(app.name)}&appId=${app.id}`);
@@ -246,8 +260,11 @@ const Dashboard = () => {
         navigate('/login');
         return;
       }
-      console.error("Erreur lors du lancement SSO", e);
-      window.open(app.url, '_blank', 'noopener,noreferrer');
+      // ⚠️ NE PLUS ouvrir silencieusement sans token — afficher l'erreur réelle
+      const errMsg = e.response?.data?.message || e.message || 'Erreur inconnue';
+      const errStatus = e.response?.status || 'N/A';
+      console.error(`[SSO] Échec lancement "${app.name}" (HTTP ${errStatus}):`, errMsg, e);
+      alert(`Échec du lancement SSO pour "${app.name}".\n\nStatut : ${errStatus}\nErreur : ${errMsg}\n\nVérifiez la console (F12) pour plus de détails.`);
     }
   };
 
