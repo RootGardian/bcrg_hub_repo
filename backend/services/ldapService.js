@@ -72,9 +72,50 @@ const authenticateLdap = async (identifier, password) => {
     
     return { success: true, user: authenticatedUser };
   } catch (error) {
-    console.error("LDAP Auth error:", error.message || error);
-    return { success: false, message: error.message || "Échec de l'authentification LDAP." };
+    const friendlyMessage = formatLdapErrorMessage(error.message || error);
+    console.error("LDAP Auth error:", error.message || error, "->", friendlyMessage);
+    return { success: false, message: friendlyMessage, rawError: error.message };
   }
+};
+
+const formatLdapErrorMessage = (rawError) => {
+  const msg = typeof rawError === 'string' ? rawError : (rawError?.message || '');
+
+  // Codes d'erreur Active Directory (AcceptSecurityContext / Win32 error)
+  if (/data 52e/i.test(msg) || /data 525/i.test(msg) || /InvalidCredentials/i.test(msg) || /80090308/i.test(msg)) {
+    return "Matricule, email ou mot de passe Active Directory incorrect.";
+  }
+  if (/data 530/i.test(msg)) {
+    return "Connexion non autorisée sur cette plage horaire (politique horaire Active Directory).";
+  }
+  if (/data 531/i.test(msg)) {
+    return "Connexion non autorisée depuis ce poste de travail.";
+  }
+  if (/data 532/i.test(msg)) {
+    return "Votre mot de passe Active Directory a expiré. Veuillez le renouveler.";
+  }
+  if (/data 533/i.test(msg)) {
+    return "Votre compte Active Directory est désactivé. Veuillez contacter le support informatique de la BCRG.";
+  }
+  if (/data 701/i.test(msg)) {
+    return "Votre compte Active Directory a expiré. Veuillez contacter le support informatique de la BCRG.";
+  }
+  if (/data 773/i.test(msg)) {
+    return "Vous devez réinitialiser votre mot de passe Active Directory avant de pouvoir vous connecter.";
+  }
+  if (/data 775/i.test(msg)) {
+    return "Compte verrouillé suite à plusieurs tentatives infructueuses. Veuillez patienter ou contacter le support informatique.";
+  }
+
+  // Erreurs réseau / d'infrastructure
+  if (/ECONNREFUSED/i.test(msg) || /ETIMEDOUT/i.test(msg) || /ENOTFOUND/i.test(msg) || /connect ECONN/i.test(msg)) {
+    return "Le serveur Active Directory est temporairement inaccessible. Veuillez vérifier la connexion au réseau interne de la Banque Centrale.";
+  }
+  if (/RefErr|0000202B|Referral/i.test(msg)) {
+    return "Erreur d'aiguillage de partition Active Directory (Referral).";
+  }
+
+  return msg || "Échec de l'authentification Active Directory.";
 };
 
 const testLdapConnection = async (config) => {
@@ -277,6 +318,7 @@ const getLdapOUs = async () => {
 module.exports = {
   authenticateLdap,
   testLdapConnection,
+  formatLdapErrorMessage,
   getLdapUsers,
   getLdapGroups,
   getUserLdapGroups,

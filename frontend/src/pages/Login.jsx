@@ -6,6 +6,39 @@ import { API_URL } from '../config/api';
 import hubLogo from '../assets/bcrg-hub-svg.svg';
 import './Login.css';
 
+const cleanLdapError = (rawMsg) => {
+  if (!rawMsg) return "Identifiant ou mot de passe incorrect.";
+  const msg = String(rawMsg);
+  if (/data 52e|data 525|80090308|InvalidCredentials|DSID-0C090532/i.test(msg)) {
+    return "Matricule, email ou mot de passe Active Directory incorrect.";
+  }
+  if (/data 530/i.test(msg)) {
+    return "Connexion non autorisée sur cette plage horaire (politique horaire Active Directory).";
+  }
+  if (/data 531/i.test(msg)) {
+    return "Connexion non autorisée depuis ce poste de travail.";
+  }
+  if (/data 532/i.test(msg)) {
+    return "Votre mot de passe Active Directory a expiré. Veuillez le renouveler.";
+  }
+  if (/data 533/i.test(msg)) {
+    return "Votre compte Active Directory est désactivé. Veuillez contacter le support informatique de la BCRG.";
+  }
+  if (/data 701/i.test(msg)) {
+    return "Votre compte Active Directory a expiré. Veuillez contacter le support informatique de la BCRG.";
+  }
+  if (/data 773/i.test(msg)) {
+    return "Vous devez réinitialiser votre mot de passe Active Directory avant de pouvoir vous connecter.";
+  }
+  if (/data 775/i.test(msg)) {
+    return "Compte verrouillé suite à plusieurs tentatives infructueuses. Veuillez patienter ou contacter le support informatique.";
+  }
+  if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND|connect ECONN/i.test(msg)) {
+    return "Le serveur Active Directory est temporairement inaccessible. Veuillez vérifier la connexion au réseau interne de la Banque Centrale.";
+  }
+  return msg.replace(/^Erreur LDAP\s*:\s*/i, '');
+};
+
 const Login = () => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -99,7 +132,7 @@ const Login = () => {
 
     } catch (err) {
       if (err.response && err.response.data && err.response.data.message) {
-        setError(err.response.data.message);
+        setError(cleanLdapError(err.response.data.message));
       } else {
         setError("Erreur de connexion au serveur backend");
       }

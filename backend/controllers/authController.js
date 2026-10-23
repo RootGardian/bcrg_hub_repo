@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { User, Role, LdapRoleMapping, SecuritySetting, RefreshToken } = require('../models');
 const { sequelize } = require('../config/db');
-const { authenticateLdap } = require('../services/ldapService');
+const { authenticateLdap, formatLdapErrorMessage } = require('../services/ldapService');
 const { getPrivateKey, getPublicKey, hasAsymmetricKeys } = require('../config/jwtKeys');
 const { generateMfaSecret, verifyMfaToken } = require('../services/mfaService');
 const { logAuditEvent } = require('../services/auditService');
@@ -359,9 +359,9 @@ const loginUser = async (req, res) => {
 
       return res.json(formatAuthResponse(user, combinedRoles, finalIsAdmin, accessToken));
     } else {
-      let msg = 'Identifiant ou mot de passe invalide';
+      let msg = 'Identifiant ou mot de passe incorrect.';
       if (ldapResult && !ldapResult.success && ldapResult.message && ldapResult.message !== 'Aucune configuration LDAP active.') {
-        msg = "Erreur LDAP : " + ldapResult.message;
+        msg = formatLdapErrorMessage(ldapResult.message);
       }
 
       await logAuditEvent({
