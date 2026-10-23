@@ -87,7 +87,12 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchMyApps = async () => {
       try {
-        const { data } = await axios.get(`${API_URL}/api/apps/my-apps`);
+        const token = localStorage.getItem('token');
+        const config = {
+          withCredentials: true,
+          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+        };
+        const { data } = await axios.get(`${API_URL}/api/apps/my-apps`, config);
         setMyApps(data);
       } catch (err) {
         console.error('Erreur chargement apps:', err);
@@ -232,6 +237,13 @@ const Dashboard = () => {
     } catch (e) {
       if (e.response?.status === 503 || e.response?.data?.maintenance) {
         navigate(`/maintenance?appName=${encodeURIComponent(app.name)}&appId=${app.id}`);
+        return;
+      }
+      if (e.response?.status === 401) {
+        alert("Votre session BCRG HUB a expiré ou n'est plus active. Veuillez vous reconnecter.");
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
         return;
       }
       console.error("Erreur lors du lancement SSO", e);

@@ -12,9 +12,12 @@ const dialectOptions = useSsl
       ssl: {
         require: true,
         rejectUnauthorized: false // Required for some remote DBs like Render
-      }
+      },
+      keepAlive: true
     }
-  : {};
+  : {
+      keepAlive: true
+    };
 
 const maxPool = process.env.DB_POOL_MAX
   ? parseInt(process.env.DB_POOL_MAX, 10)
@@ -34,14 +37,23 @@ const sequelize = new Sequelize(
     dialect: 'postgres',
     logging: false,
     dialectOptions,
+    retry: {
+      max: 3,
+      match: [
+        /ECONNRESET/,
+        /ETIMEDOUT/,
+        /Connection terminated/,
+        /timeout/
+      ]
+    },
     pool: {
-      max: maxPool, // Jusqu'à 40-50 connexions simultanées en production pour 800+ utilisateurs
-      min: minPool, // Maintient des connexions chaudes prêtes à l'emploi
-      acquire: 30000,
-      idle: 60000
+      max: maxPool,
+      min: minPool,
+      acquire: 60000,
+      idle: 30000
     },
     define: {
-      timestamps: false // Les tables fournies n'ont que created_at, pas de updated_at
+      timestamps: false
     }
   }
 );

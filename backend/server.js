@@ -174,6 +174,11 @@ if (isClusterMode && cluster.isPrimary) {
       await ensureSchemaUpdates();
       await initDefaultAdmin();
       startServer();
+    }).catch(err => {
+      console.error('⚠️ Avertissement synchronisation Sequelize:', err.message);
+      startServer();
     });
+  }).catch(err => {
+    console.error('❌ Échec initialisation connectDB:', err.message);
   });
 }
