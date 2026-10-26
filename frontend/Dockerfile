@@ -14,11 +14,16 @@ ENV VITE_API_URL=$VITE_API_URL
 # Copie des manifestes de dépendances
 COPY package*.json ./
 
-# Installation complète des dépendances (résolution native des binaires plateformes)
+# Installation complète des dépendances
 RUN npm install
 
-# Copie de l'intégralité du code source
-COPY . .
+# Copie explicite des sources applicatives (évite qu'un node_modules hôte n'écrase celui du conteneur)
+COPY vite.config.js index.html ./
+COPY src ./src
+COPY public ./public
+
+# Export de node_modules/.bin dans le PATH pour garantir l'exécution de vite
+ENV PATH="/app/node_modules/.bin:$PATH"
 
 # Compilation de production Vite
 RUN npm run build
