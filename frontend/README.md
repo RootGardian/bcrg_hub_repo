@@ -28,7 +28,7 @@ npm install
 # Démarrer le serveur de développement avec support réseau local (--host)
 npm run dev
 
-# Compiler le projet pour la production
+# Compiler le projet pour la production (génère le dossier dist/)
 npm run build
 
 # Prévisualiser le build de production localement
@@ -40,14 +40,28 @@ npm run lint
 
 ---
 
+## 🐳 Architecture Déploiement Docker & Nginx Reverse-Proxy
+
+Pour garantir un déploiement fiable même sur des serveurs sans accès Internet direct (intranet BCRG) :
+
+1. **Stratégie de Pré-compilation (`dist/`)** :
+   Le build de production (`npm run build`) est exécuté sur le poste développeur. Le dossier `dist/` qui en résulte est versionné dans Git. Le `Dockerfile` du frontend se contente de copier ce dossier dans une image légère `nginx:1.25-alpine`, évitant ainsi tout timeout npm sur le serveur.
+
+2. **Routage Relatif & Reverse-Proxy** :
+   Le frontend n'a pas besoin de variable d'environnement `VITE_API_URL` en mode Docker. Nginx écoute sur le port public configuré (ex: `3001`) et relaie automatiquement toutes les requêtes débutant par `/api/` en interne vers le conteneur `backend:5001`.
+
+---
+
 ## 📱 Fonctionnalités de l'Interface
 
 * **Écran de Connexion & MFA** :
   - Support des identifiants (matricule ou email).
   - Validation Microsoft Authenticator (TOTP) avec saisie segmentée à 6 chiffres, focus automatique et QR code.
-* **Tableau de Bord Collaborateur** :
-  - Catalogue des applications autorisées avec logos dynamiques.
-  - Heartbeat de sécurité en arrière-plan (5s) pour synchronisation des rôles en direct.
+* **Tableau de Bord Collaborateur (Design Ultra-Moderne & Compact)** :
+  - Cartes applicatives épurées conformes aux standards ergonomiques modernes.
+  - Détection automatique et intelligente des icônes selon la sémantique de l'outil (Parking, RH, Santé, Finance, Documents...).
+  - Support des logos personnalisés (URL spécifiée dans l'Admin Panel).
+  - Heartbeat de sécurité en arrière-plan pour synchronisation des rôles en direct.
 * **Tableau de Bord Administrateur** :
   - Métriques et statistiques en temps réel.
   - Gestion des utilisateurs et de leurs droits.

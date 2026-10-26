@@ -275,34 +275,167 @@ Pour permettre à n'importe quelle application métier (développée en Java, .N
 
 ## 🐳 Déploiement Conteneurisé (Docker Compose)
 
-Le déploiement complet de la solution (Base de Données PostgreSQL + Backend Express + Frontend Nginx) s'effectue en une seule commande grâce à Docker Compose.
+Le déploiement complet de la solution (**Base de Données PostgreSQL 16 + Backend Express Cluster + Frontend Nginx**) s'effectue facilement grâce à Docker Compose.
 
-### 1. Déploiement en 1 clic sous Windows
-Double-cliquez sur le script fourni ou lancez dans PowerShell / CMD :
-```cmd
-.\deploy_docker.bat
+---
+
+### 1. Déploiement Initial sur Serveur Linux / Production
+
+#### Étape A : Cloner le projet
+```bash
+git clone https://github.com/RootGardian/bcrg_hub_repo.git
+cd bcrg_hub_repo
 ```
-Ce script vérifie la présence de Docker, copie automatiquement le modèle `.env.docker.example` vers `.env` si nécessaire, compile les images et lance les conteneurs.
 
-### 2. Déploiement sous Linux / Serveur de Production
-Rendez le script exécutable et lancez-le :
+#### Étape B : Configurer les Variables d'Environnement
+Pour le déploiement Docker, Compose lit impérativement le fichier **`.env` situé à la racine du projet** :
+```bash
+cp .env.docker.example .env
+```
+
+> ⚠️ **Note Importante sur les fichiers d'environnement** :
+> * **`.env` (à la racine)** : C'est l'unique fichier lu par `docker-compose.yml`. Il configure à la fois PostgreSQL, le Backend et le port public du Frontend.
+> * **Pas besoin de spécifier l'URL du Backend pour le Frontend** : Le conteneur Nginx agit comme **Reverse-Proxy**. Le navigateur communique uniquement sur le port public (ex: `3001`), et Nginx transmet automatiquement en interne les requêtes `/api/*` vers le conteneur `backend:5001`.
+
+*(Optionnel)* Personnalisez les mots de passe et clés dans `.env` :
+```bash
+nano .env
+```
+
+#### Étape C : Lancer le Déploiement
+Utilisez le script automatisé fourni :
 ```bash
 chmod +x deploy_docker.sh
 ./deploy_docker.sh
 ```
-Ou manuellement :
+
+Ou exécutez directement :
 ```bash
-cp .env.docker.example .env
-# Personnalisez vos mots de passe et clés dans .env
 docker compose up -d --build
 ```
 
-### 3. Accès aux Services
-* **Portail Web BCRG HUB** : `http://localhost` (ou port configuré dans `.env`)
-* **API Backend directe (si exposée)** : `http://localhost:5001`
-* **Compte Super Administrateur Initial** :
-  * **Email** : `admin@bcrg-guinee.org`
-  * **Mot de passe** : `Bcrg@Admin2026!` *(à modifier lors de la première connexion)*
+---
+
+### 2. Déploiement en 1 Clic sous Windows (Poste Local)
+Double-cliquez sur le script fourni ou lancez dans PowerShell / CMD :
+```cmd
+.\deploy_docker.bat
+```
+Ce script vérifie la présence de Docker, copie automatiquement `.env.docker.example` vers `.env` si nécessaire, compile les images et lance les conteneurs.
+
+---
+
+### 3. Workflow de Mise à Jour (Développement ➔ Production)
+
+Le Frontend utilise désormais une **stratégie de pré-compilation locale (`dist/`)**. Cela permet au serveur de production de déployer l'image Nginx en 3 secondes sans avoir besoin d'accès Internet vers le registre public npm.
+
+#### Côté Poste Développeur (Windows) :
+Lorsqu'une modification est effectuée sur le code du frontend :
+```powershell
+# 1. Compiler les sources React avec Vite
+cd frontend
+npm run build
+cd ..
+
+# 2. Commiter le code source et le bundle dist
+git add -f frontend/dist
+git add frontend/src
+git commit -m "feat: mise à jour des interfaces"
+git push origin main
+```
+
+#### Côté Serveur de Production (Linux) :
+```bash
+cd ~/bcrg_hub_repo
+git pull
+docker compose up -d --build frontend
+```
+
+---
+
+### 4. Procédure de Réinitialisation Complète (Clean Re-deploy)
+
+Si vous devez supprimer intégralement les conteneurs, le cache Docker et la base de données pour repartir de zéro :
+
+```bash
+# 1. Stopper les conteneurs ET supprimer les volumes persistants
+cd ~/bcrg_hub_repo
+docker compose down -v --rmi local
+
+# 2. Vider le cache des couches Docker obsolètes
+docker builder prune -af
+
+# 3. Supprimer le dossier du projet
+cd ~
+rm -rf bcrg_hub_repo
+
+# 4. Re-cloner et relancer proprement
+git clone https://github.com/RootGardian/bcrg_hub_repo.git
+cd bcrg_hub_repo
+cp .env.docker.example .env
+chmod +x deploy_docker.sh
+./deploy_docker.sh
+```
+
+---
+
+### 5. Accès aux Services & Identifiants Initiaux
+
+* **Portail Web BCRG HUB** : `http://<IP_SERVEUR>:3001` (ou port configuré via `PORT` dans `.env`)
+* **API Backend directe (si exposée)** : `http://<IP_SERVEUR>:5001`
+* **Compte Super Administrateur Initial** (généré automatiquement en base au premier démarrage) :
+  * **Email** : `sysadmin@bcrg-guinee.org` (ou valeur de `DEFAULT_ADMIN_EMAIL`)
+  * **Mot de passe** : `Bcrg@Admin2026!` (ou valeur de `DEFAULT_ADMIN_PASSWORD`)
+  * **Matricule** : `0001`
+
+---
+
+## 🚨 Guide de Résolution des Erreurs Fréquentes (Troubleshooting / FAQ)
+
+Voici la synthèse des anomalies rencontrées lors des déploiements et leurs solutions immédiates :
+
+### ❌ Erreur 1 : `error: password authentication failed for user "postgres" (code 28P01)`
+* **Symptôme** : Le conteneur `bcrg-backend` redémarre en boucle et affiche cette erreur dans `docker compose logs backend`. Le frontend répond `404` ou `502`.
+* **Cause** : PostgreSQL n'initialise son mot de passe administrateur dans son volume de données (`bcrg_postgres_data`) **qu'une seule fois**, lors de sa première création. Si vous changez `DB_PASSWORD` dans `.env` après coup, PostgreSQL continue d'utiliser l'ancien mot de passe du volume existant, provoquant un refus de connexion du backend.
+* **Solution** : Supprimer le volume persistant obsolète pour forcer PostgreSQL à réinitialiser le mot de passe défini dans `.env` :
+  ```bash
+  docker compose down -v
+  docker compose up -d
+  ```
+
+---
+
+### ❌ Erreur 2 : `sh: vite: not found` ou `npm error ETIMEDOUT / registry.npmjs.org`
+* **Symptôme** : L'étape de build du conteneur `frontend` échoue lors de `RUN npm install` ou `RUN npm run build`.
+* **Cause** : 
+  1. Le serveur de production est situé sur un réseau d'entreprise/intranet restreint (bloquant l'accès direct à `registry.npmjs.org`).
+  2. Ou Docker réutilise une ancienne couche en cache (`CACHED [frontend builder]`).
+* **Solution** :
+  1. Utilisez la version actuelle du projet qui s'appuie sur le dossier `dist/` pré-compilé localement. Le `Dockerfile` frontend ne fait plus de `npm install` sur le serveur et se contente de servir les fichiers statiques via Nginx.
+  2. Si besoin de purger le cache Docker local sur le serveur :
+     ```bash
+     docker builder prune -af
+     docker compose build --no-cache frontend
+     ```
+
+---
+
+### ❌ Erreur 3 : `connect() failed (113: Host is unreachable) while connecting to upstream` ou erreur 404 à la connexion
+* **Symptôme** : Lorsque vous cliquez sur "Se Connecter" sur la page de login, un message rouge *"Erreur de connexion au serveur backend"* s'affiche et la console indique `404 Not Found` sur `/api/auth/login`.
+* **Cause** : Le conteneur `bcrg-backend` a crashé (généralement à cause de l'Erreur 1 de base de données). Nginx ne parvient pas à joindre le backend sur le réseau interne Docker (`http://backend:5001`), cherche à renvoyer sa page d'erreur `50x.html` (absente), et renvoie un 404.
+* **Solution** :
+  1. Vérifier la raison du crash du backend :
+     ```bash
+     docker compose logs --tail=50 backend
+     ```
+  2. Résoudre le souci de base de données (voir Erreur 1 ci-dessus). Dès que le backend démarre (`Server running on port 5001`), la connexion fonctionne instantanément.
+
+---
+
+### ❌ Erreur 4 : La page web ne prend pas en compte les dernières modifications
+* **Symptôme** : Vous avez redéployé le conteneur frontend, mais l'ancien affichage persiste sur votre écran.
+* **Cause** : Le navigateur web met en cache agressif les fichiers JavaScript et CSS statiques.
+* **Solution** : Effectuez un rechargement forcé sans cache dans votre navigateur avec **`Ctrl + F5`** (ou `Cmd + Shift + R` sur Mac).
 
 ---
 
