@@ -19,93 +19,87 @@ import {
   Building,
   Hash,
   ExternalLink,
-  Wrench
+  Wrench,
+  Car,
+  Users,
+  HeartPulse,
+  Landmark,
+  FileText,
+  ArrowRight,
+  ArrowUpRight,
+  Lock,
+  Search
 } from 'lucide-react';
 import logo from '../assets/bcrg_logo_seul_inverse_144.png';
 import './Dashboard.css';
 
 const STATUS_COLORS = {
-  'Actif': { bg: '#e8f5e9', color: '#2e7d32' },
-  'En maintenance': { bg: '#fff3e0', color: '#f57c00' },
-  'Inactif': { bg: '#fce4ec', color: '#c62828' }
+  'Actif': { bg: '#eefcf6', color: '#065f46', border: '#a7f3d0' },
+  'En maintenance': { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
+  'Inactif': { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' }
 };
 
-// Palette de couleurs pour les avatars générés
-const AVATAR_COLORS = [
-  ['#1a3c2c', '#e8f5e9'], ['#1e3a5f', '#e3f0ff'], ['#5b21b6', '#f3e8ff'],
-  ['#9d174d', '#fce7f3'], ['#b45309', '#fef3c7'], ['#065f46', '#d1fae5'],
-  ['#1d4ed8', '#dbeafe'], ['#7c2d12', '#ffedd5'], ['#134e4a', '#ccfbf1'],
-  ['#4c1d95', '#ede9fe']
-];
-
-const getAvatarColor = (name = '') => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+// Analyse sémantique pour choisir la bonne icône vectorielle
+const getAppIconComponent = (name = '', description = '') => {
+  const text = `${name} ${description}`.toLowerCase();
+  if (text.includes('park') || text.includes('véhicule') || text.includes('vehicule') || text.includes('voiture')) {
+    return Car;
+  }
+  if (text.includes('rh') || text.includes('congé') || text.includes('conge') || text.includes('personnel') || text.includes('paie') || text.includes('employ')) {
+    return Users;
+  }
+  if (text.includes('med') || text.includes('santé') || text.includes('sante') || text.includes('soin') || text.includes('docteur') || text.includes('patient')) {
+    return HeartPulse;
+  }
+  if (text.includes('banque') || text.includes('finance') || text.includes('compta') || text.includes('caisse') || text.includes('trésor')) {
+    return Landmark;
+  }
+  if (text.includes('doc') || text.includes('courrier') || text.includes('ged') || text.includes('archive')) {
+    return FileText;
+  }
+  return AppWindow;
 };
 
-const AppAvatar = ({ name, size = 28 }) => {
-  const initials = name
-    ? name.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase()
-    : '?';
-  const [fg, bg] = getAvatarColor(name);
-  return (
-    <div style={{
-      width: `${size}px`, height: `${size}px`,
-      borderRadius: '10px',
-      background: bg,
-      color: fg,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: 800,
-      fontSize: `${Math.round(size * 0.38)}px`,
-      letterSpacing: '0.5px',
-      userSelect: 'none',
-      flexShrink: 0
-    }}>
-      {initials}
-    </div>
-  );
-};
+// Composant d'icône d'application intelligent
+// 1. Si une URL d'icône / logo a été renseignée dans l'Admin Panel, on l'affiche
+// 2. Sinon, on utilise l'icône vectorielle automatique basée sur le type de l'application
+const BcrgAppIcon = ({ app, size = 22 }) => {
+  const [imgError, setImgError] = useState(false);
+  const IconComponent = getAppIconComponent(app.name, app.description);
 
-const isLocalUrl = (url) => {
-  try {
-    const h = new URL(url).hostname;
-    return h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.') || h.startsWith('10.');
-  } catch { return false; }
-};
-
-const AppLogo = ({ app, size = 28 }) => {
-  const [srcIndex, setSrcIndex] = useState(0);
-
-  const getSources = () => {
-    const sources = [];
-    if (app && app.icon_url && !isLocalUrl(app.icon_url)) sources.push(app.icon_url);
-    if (app && app.url && !isLocalUrl(app.url)) {
-      try {
-        const urlObj = new URL(app.url);
-        sources.push(`https://icons.duckduckgo.com/ip3/${urlObj.hostname}.ico`);
-        sources.push(`https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=128`);
-      } catch (e) {
-        // ignore invalid URL
-      }
-    }
-    return sources;
-  };
-
-  const sources = getSources();
-
-  if (srcIndex >= sources.length || sources.length === 0) {
-    return <AppAvatar name={app ? app.name : ''} size={size} />;
+  if (app.icon_url && !imgError) {
+    return (
+      <img
+        src={app.icon_url}
+        alt={app.name}
+        onError={() => setImgError(true)}
+        style={{ width: '28px', height: '28px', objectFit: 'contain' }}
+      />
+    );
   }
 
-  return (
-    <img
-      src={sources[srcIndex]}
-      alt={app ? app.name : 'App'}
-      onError={() => setSrcIndex(prev => prev + 1)}
-      style={{ width: `${size}px`, height: `${size}px`, objectFit: 'contain', borderRadius: '8px' }}
-    />
-  );
+  return <IconComponent size={size} color="#065f46" strokeWidth={2.2} />;
+};
+
+// Attribution automatique de tags élégants (comme dans la référence)
+const getAppTags = (app) => {
+  const text = `${app.name || ''} ${app.description || ''}`.toLowerCase();
+  if (text.includes('park') || text.includes('véhicule') || text.includes('voiture')) {
+    return ['R+12 Siège', 'Accès Véhicules'];
+  }
+  if (text.includes('rh') || text.includes('congé') || text.includes('conge') || text.includes('personnel') || text.includes('paie')) {
+    return ['Personnel', 'RH'];
+  }
+  if (text.includes('med') || text.includes('santé') || text.includes('sante') || text.includes('soin')) {
+    return ['Santé', 'Médical'];
+  }
+  if (text.includes('banque') || text.includes('finance') || text.includes('compta')) {
+    return ['Finance', 'Trésorerie'];
+  }
+  if (text.includes('doc') || text.includes('courrier')) {
+    return ['Archives', 'GED'];
+  }
+  return ['Portail Métier', 'BCRG'];
 };
 
 const Dashboard = () => {
@@ -448,7 +442,7 @@ const Dashboard = () => {
                   {/* Barre de recherche */}
                   <div className="apps-search-wrapper">
                     <svg className="apps-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
                     <input
                       id="apps-search-input"
@@ -479,9 +473,9 @@ const Dashboard = () => {
                   const q = searchQuery.trim().toLowerCase();
                   const filtered = q
                     ? myApps.filter(a =>
-                        a.name?.toLowerCase().includes(q) ||
-                        a.description?.toLowerCase().includes(q)
-                      )
+                      a.name?.toLowerCase().includes(q) ||
+                      a.description?.toLowerCase().includes(q)
+                    )
                     : myApps;
                   return filtered.length === 0 ? (
                     <div className="empty-apps">
@@ -489,32 +483,73 @@ const Dashboard = () => {
                       <p>Aucun résultat pour « {searchQuery} »</p>
                     </div>
                   ) : (
-                    <div className="apps-grid">
+                    <div className="bcrg-apps-grid">
                       {filtered.map((app) => {
                         const isMaintenance = app.status === 'En maintenance';
                         const isDisabled = app.status !== 'Actif' && !isMaintenance;
                         const badge = STATUS_COLORS[app.status] || STATUS_COLORS['Actif'];
+                        const IconComponent = getAppIconComponent(app.name, app.description);
+                        const tags = getAppTags(app);
+
                         return (
                           <div
                             key={app.id}
-                            className={`app-card ${isMaintenance ? 'app-card-maintenance' : ''} ${isDisabled ? 'app-card-disabled' : ''}`}
+                            className={`bcrg-card ${isMaintenance ? 'bcrg-card-maintenance' : ''} ${isDisabled ? 'bcrg-card-disabled' : ''}`}
                             onClick={() => openApp(app)}
                             style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
                             title={isMaintenance ? `Application en maintenance — Cliquez pour voir les détails` : (isDisabled ? `Application ${app.status}` : `Ouvrir ${app.name}`)}
                           >
-                            <div className="app-icon">
-                              <AppLogo app={app} size={32} />
-                            </div>
-                            <div className="app-details">
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                                <h4>{app.name}</h4>
-                                {!isDisabled && !isMaintenance && <ExternalLink size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />}
-                                {isMaintenance && <Wrench size={14} style={{ color: '#d97706', flexShrink: 0 }} />}
+                            {/* Rangée supérieure : Icône à gauche, Statut + SSO Direct à droite */}
+                            <div className="bcrg-card-top">
+                              <div className="bcrg-card-icon-box">
+                                <BcrgAppIcon app={app} size={22} />
                               </div>
-                              <p>{app.description || 'Application BCRG'}</p>
-                              <span className="app-status-badge" style={{ backgroundColor: badge.bg, color: badge.color }}>
-                                {app.status}
+
+                              <div className="bcrg-card-status-col">
+                                <div className="bcrg-status-badge" style={{ backgroundColor: badge.bg, borderColor: badge.border, color: badge.color }}>
+                                  <span className="bcrg-dot" style={{ backgroundColor: badge.color }} />
+                                  <span>{app.status}</span>
+                                </div>
+                                <span className="bcrg-sso-caption">SSO Direct</span>
+                              </div>
+                            </div>
+
+                            {/* Titre avec badge lien externe */}
+                            <div className="bcrg-card-title-row">
+                              <h3 className="bcrg-card-title">{app.name}</h3>
+                              <span className="bcrg-ext-badge">
+                                <ArrowUpRight size={11} color="#ffffff" strokeWidth={2.6} />
                               </span>
+                            </div>
+
+                            {/* Description */}
+                            <p className="bcrg-card-desc">
+                              {app.description || "Application de gestion et services internes de la Banque Centrale."}
+                            </p>
+
+                            {/* Badges de tags */}
+                            <div className="bcrg-card-tags">
+                              {tags.map((tag, idx) => (
+                                <span key={idx} className="bcrg-tag-pill">{tag}</span>
+                              ))}
+                            </div>
+
+                            {/* Ligne de séparation */}
+                            <div className="bcrg-card-divider" />
+
+                            {/* Pied de carte : Portail Web à gauche, Bouton Ouvrir à droite */}
+                            <div className="bcrg-card-footer">
+                              <span className="bcrg-portal-label">Portail Web</span>
+                              <button
+                                className="bcrg-open-button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openApp(app);
+                                }}
+                              >
+                                <span>{isMaintenance ? 'Détails' : "Ouvrir"}</span>
+                                {isMaintenance ? <Wrench size={12} /> : <ArrowRight size={13} />}
+                              </button>
                             </div>
                           </div>
                         );
