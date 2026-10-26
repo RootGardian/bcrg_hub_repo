@@ -14,9 +14,8 @@ ENV VITE_API_URL=$VITE_API_URL
 # Copie des manifestes de dépendances
 COPY package*.json ./
 
-# Forcer le mode développement lors du build pour installer Vite et les outils de compilation
-ENV NODE_ENV=development
-RUN npm ci --include=dev
+# Installation complète des dépendances (résolution native des binaires plateformes)
+RUN npm install
 
 # Copie de l'intégralité du code source
 COPY . .
